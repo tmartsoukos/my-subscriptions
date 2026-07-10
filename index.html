@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Οι Συνδρομές μου</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1f2630;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #7c6cf6;
+    --accent-soft: rgba(124, 108, 246, 0.15);
+    --danger: #f85149;
+    --warn: #e3b341;
+    --ok: #3fb950;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  .container { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+  header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  header h1 span { color: var(--accent); }
+
+  .btn {
+    border: none; border-radius: 10px; cursor: pointer;
+    font-size: 14px; font-weight: 600; padding: 10px 18px;
+    transition: filter .15s, transform .1s;
+  }
+  .btn:hover { filter: brightness(1.15); }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .stat .label { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
+  .stat .value { font-size: 24px; font-weight: 700; }
+  .stat .value small { font-size: 14px; color: var(--muted); font-weight: 500; }
+
+  /* Cards */
+  .list { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+    display: flex; align-items: center; gap: 16px;
+    transition: border-color .15s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card.due-soon { border-left: 4px solid var(--warn); }
+  .card.due-today { border-left: 4px solid var(--danger); }
+
+  .logo {
+    width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: #fff;
+  }
+  .card-main { flex: 1; min-width: 0; }
+  .card-main .name { font-weight: 600; font-size: 16px; margin-bottom: 3px; }
+  .card-main .meta { color: var(--muted); font-size: 13px; }
+  .card-right { text-align: right; flex-shrink: 0; }
+  .card-right .price { font-weight: 700; font-size: 17px; }
+  .card-right .cycle { color: var(--muted); font-size: 12px; }
+  .card-right .due { font-size: 13px; margin-top: 4px; }
+  .due.ok { color: var(--muted); }
+  .due.soon { color: var(--warn); font-weight: 600; }
+  .due.today { color: var(--danger); font-weight: 700; }
+
+  .card-actions { display: flex; flex-direction: column; gap: 6px; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer; color: var(--muted);
+    font-size: 16px; padding: 4px 6px; border-radius: 6px;
+  }
+  .icon-btn:hover { color: var(--text); background: var(--surface2); }
+
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+    background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius);
+  }
+  .empty .big { font-size: 44px; margin-bottom: 12px; }
+
+  /* Modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: center; justify-content: center; z-index: 10; padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 26px; width: 100%; max-width: 440px;
+  }
+  .modal h2 { font-size: 19px; margin-bottom: 20px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 15px; padding: 10px 12px;
+    outline: none; font-family: inherit;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .colors { display: flex; gap: 8px; flex-wrap: wrap; }
+  .color-dot {
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .color-dot.selected { border-color: #fff; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+  .section-title { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin: 26px 0 12px; }
+
+  @media (max-width: 560px) {
+    .card { flex-wrap: wrap; }
+    .card-right { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>💳 Οι <span>Συνδρομές</span> μου</h1>
+    <button class="btn btn-primary" onclick="openModal()">+ Νέα συνδρομή</button>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Μηνιαίο κόστος</div>
+      <div class="value" id="statMonthly">0,00 € <small>/ μήνα</small></div>
+    </div>
+    <div class="stat">
+      <div class="label">Ετήσιο κόστος</div>
+      <div class="value" id="statYearly">0,00 € <small>/ έτος</small></div>
+    </div>
+    <div class="stat">
+      <div class="label">Ενεργές συνδρομές</div>
+      <div class="value" id="statCount">0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Επόμενη πληρωμή</div>
+      <div class="value" id="statNext" style="font-size:17px;">—</div>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <h2 id="modalTitle">Νέα συνδρομή</h2>
+    <div class="field">
+      <label>Όνομα υπηρεσίας</label>
+      <input type="text" id="fName" placeholder="π.χ. Netflix, Spotify...">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Κόστος (€)</label>
+        <input type="number" id="fPrice" min="0" step="0.01" placeholder="9.99">
+      </div>
+      <div class="field">
+        <label>Συχνότητα</label>
+        <select id="fCycle">
+          <option value="weekly">Εβδομαδιαία</option>
+          <option value="monthly" selected>Μηνιαία</option>
+          <option value="yearly">Ετήσια</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Ημερομηνία επόμενης χρέωσης</label>
+      <input type="date" id="fDate">
+    </div>
+    <div class="field">
+      <label>Χρώμα</label>
+      <div class="colors" id="fColors"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Άκυρο</button>
+      <button class="btn btn-primary" onclick="save()">Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "my-subscriptions";
+const COLORS = ["#e50914","#1db954","#7c6cf6","#0f79af","#ff9900","#e3b341","#3fb950","#f06292","#00bcd4","#8d6e63"];
+const CYCLES = { weekly: "εβδομάδα", monthly: "μήνα", yearly: "έτος" };
+const CYCLE_LABEL = { weekly: "Εβδομαδιαία", monthly: "Μηνιαία", yearly: "Ετήσια" };
+
+let subs = load();
+let editingId = null;
+let selectedColor = COLORS[2];
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(subs)); }
+
+function fmt(n) {
+  return n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+function fmtDate(d) {
+  return d.toLocaleDateString("el-GR", { day: "numeric", month: "long", year: "numeric" });
+}
+// Τοπική ημερομηνία σε μορφή YYYY-MM-DD (όχι toISOString — αλλάζει μέρα λόγω UTC)
+function isoLocal(d) {
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+// Επόμενη χρέωση: αν η αποθηκευμένη ημερομηνία πέρασε, κύλισέ την μπροστά
+function nextDue(sub) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  let d = new Date(sub.nextDate + "T00:00:00");
+  while (d < today) {
+    if (sub.cycle === "weekly") d.setDate(d.getDate() + 7);
+    else if (sub.cycle === "monthly") d.setMonth(d.getMonth() + 1);
+    else d.setFullYear(d.getFullYear() + 1);
+  }
+  return d;
+}
+function daysUntil(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+function monthlyCost(sub) {
+  if (sub.cycle === "weekly") return sub.price * 52 / 12;
+  if (sub.cycle === "yearly") return sub.price / 12;
+  return sub.price;
+}
+
+function render() {
+  // Ενημέρωση κυλιόμενων ημερομηνιών στο storage
+  let changed = false;
+  subs.forEach(s => {
+    const d = nextDue(s);
+    const iso = isoLocal(d);
+    if (iso !== s.nextDate) { s.nextDate = iso; changed = true; }
+  });
+  if (changed) persist();
+
+  const sorted = [...subs].sort((a,b) => nextDue(a) - nextDue(b));
+
+  // Στατιστικά
+  const monthly = subs.reduce((sum,s) => sum + monthlyCost(s), 0);
+  document.getElementById("statMonthly").innerHTML = fmt(monthly) + " <small>/ μήνα</small>";
+  document.getElementById("statYearly").innerHTML = fmt(monthly*12) + " <small>/ έτος</small>";
+  document.getElementById("statCount").textContent = subs.length;
+  const nextEl = document.getElementById("statNext");
+  if (sorted.length) {
+    const d = nextDue(sorted[0]);
+    nextEl.textContent = sorted[0].name + " · " + d.toLocaleDateString("el-GR", { day:"numeric", month:"short" });
+  } else nextEl.textContent = "—";
+
+  // Λίστα
+  const content = document.getElementById("content");
+  if (!sorted.length) {
+    content.innerHTML = `<div class="empty">
+      <div class="big">📭</div>
+      <p>Δεν έχεις προσθέσει καμία συνδρομή ακόμα.</p>
+      <p style="margin-top:6px;">Πάτησε «Νέα συνδρομή» για να ξεκινήσεις!</p>
+    </div>`;
+    return;
+  }
+
+  let html = `<div class="section-title">Επερχόμενες πληρωμές</div><div class="list">`;
+  for (const s of sorted) {
+    const d = nextDue(s);
+    const days = daysUntil(d);
+    let dueClass = "ok", cardClass = "", dueText;
+    if (days === 0) { dueClass = "today"; cardClass = "due-today"; dueText = "⚠️ Πληρώνεται σήμερα!"; }
+    else if (days === 1) { dueClass = "soon"; cardClass = "due-soon"; dueText = "Αύριο"; }
+    else if (days <= 7) { dueClass = "soon"; cardClass = "due-soon"; dueText = `Σε ${days} ημέρες`; }
+    else dueText = fmtDate(d);
+
+    html += `<div class="card ${cardClass}">
+      <div class="logo" style="background:${s.color}">${escapeHtml(s.name.charAt(0).toUpperCase())}</div>
+      <div class="card-main">
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="meta">${CYCLE_LABEL[s.cycle]} · ${fmt(monthlyCost(s))}/μήνα</div>
+      </div>
+      <div class="card-right">
+        <div class="price">${fmt(s.price)}</div>
+        <div class="cycle">ανά ${CYCLES[s.cycle]}</div>
+        <div class="due ${dueClass}">${dueText}</div>
+      </div>
+      <div class="card-actions">
+        <button class="icon-btn" title="Επεξεργασία" onclick="openModal('${s.id}')">✏️</button>
+        <button class="icon-btn" title="Διαγραφή" onclick="remove('${s.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+// Modal
+function renderColors() {
+  const el = document.getElementById("fColors");
+  el.innerHTML = COLORS.map(c =>
+    `<div class="color-dot ${c===selectedColor?"selected":""}" style="background:${c}" onclick="pickColor('${c}')"></div>`
+  ).join("");
+}
+function pickColor(c) { selectedColor = c; renderColors(); }
+
+function openModal(id) {
+  editingId = id || null;
+  const sub = id ? subs.find(s => s.id === id) : null;
+  document.getElementById("modalTitle").textContent = sub ? "Επεξεργασία συνδρομής" : "Νέα συνδρομή";
+  document.getElementById("fName").value = sub ? sub.name : "";
+  document.getElementById("fPrice").value = sub ? sub.price : "";
+  document.getElementById("fCycle").value = sub ? sub.cycle : "monthly";
+  document.getElementById("fDate").value = sub ? sub.nextDate : isoLocal(new Date());
+  selectedColor = sub ? sub.color : COLORS[Math.floor(Math.random()*COLORS.length)];
+  renderColors();
+  document.getElementById("overlay").classList.add("open");
+  document.getElementById("fName").focus();
+}
+function closeModal() { document.getElementById("overlay").classList.remove("open"); }
+
+function save() {
+  const name = document.getElementById("fName").value.trim();
+  const price = parseFloat(document.getElementById("fPrice").value);
+  const cycle = document.getElementById("fCycle").value;
+  const nextDate = document.getElementById("fDate").value;
+  if (!name) { alert("Συμπλήρωσε το όνομα της υπηρεσίας."); return; }
+  if (isNaN(price) || price < 0) { alert("Συμπλήρωσε έγκυρο κόστος."); return; }
+  if (!nextDate) { alert("Συμπλήρωσε την ημερομηνία επόμενης χρέωσης."); return; }
+
+  if (editingId) {
+    const sub = subs.find(s => s.id === editingId);
+    Object.assign(sub, { name, price, cycle, nextDate, color: selectedColor });
+  } else {
+    subs.push({ id: Date.now().toString(36), name, price, cycle, nextDate, color: selectedColor });
+  }
+  persist();
+  closeModal();
+  render();
+}
+
+function remove(id) {
+  const sub = subs.find(s => s.id === id);
+  if (!confirm(`Διαγραφή της συνδρομής «${sub.name}»;`)) return;
+  subs = subs.filter(s => s.id !== id);
+  persist();
+  render();
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js");
+}
+
+render();
+</script>
+</body>
+</html>

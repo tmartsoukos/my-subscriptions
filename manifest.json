@@ -1,12 +1,12 @@
 {
-  "name": "Οι Συνδρομές μου",
-  "short_name": "Συνδρομές",
-  "description": "Παρακολούθηση συνδρομών και επόμενων πληρωμών",
+  "name": "Το Dashboard μου",
+  "short_name": "Dashboard",
+  "description": "Συνδρομές, εργασίες, ημερολόγιο και σημειώσεις",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#0d1117",
-  "theme_color": "#0d1117",
+  "background_color": "#070d1f",
+  "theme_color": "#070d1f",
   "lang": "el",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },

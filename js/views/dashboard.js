@@ -1,5 +1,8 @@
 import { subscriptions, todos, events } from "../db.js";
-import { escapeHtml, fmt, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost, CATEGORIES, icons, today } from "../ui.js";
+import {
+  escapeHtml, fmt, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost,
+  isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, icons, today
+} from "../ui.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
 
 // Χρεώσεις που πέφτουν σε κάθε έναν από τους επόμενους 12 μήνες
@@ -13,7 +16,7 @@ function monthlyProjection(subs) {
     for (const s of subs) {
       let d = nextDue(s);
       while (d <= end) {
-        if (d >= start) sum += Number(s.price);
+        if (d >= start) sum += myShare(s); // το δικό μου μερίδιο σε μοιρασμένες
         const nd = new Date(d);
         if (s.cycle === "weekly") nd.setDate(nd.getDate() + 7);
         else if (s.cycle === "monthly") nd.setMonth(nd.getMonth() + 1);
@@ -31,8 +34,22 @@ export async function render(view) {
     subscriptions.list(), todos.list(), events.list()
   ]);
 
-  const monthly = subs.reduce((s, x) => s + monthlyCost(x), 0);
+  const trials = subs.filter(isInTrial);
+  const monthly = subs.filter(s => !isInTrial(s)).reduce((s, x) => s + monthlyCost(x), 0);
   const pendingTodos = todoItems.filter(t => !t.done);
+
+  // Οφειλές ανά πρόσωπο (μοιρασμένες συνδρομές που δεν έχουν πληρωθεί)
+  const debts = {};
+  for (const s of subs) {
+    for (const m of unpaidMembers(s)) {
+      debts[m.name] = (debts[m.name] || 0) + myShare(s);
+    }
+  }
+  const debtList = Object.entries(debts).sort((a, b) => b[1] - a[1]);
+  const owedTotal = debtList.reduce((sum, [, v]) => sum + v, 0);
+
+  // Δοκιμές που λήγουν σύντομα — η πιο επείγουσα πληροφορία
+  const endingTrials = trials.filter(s => trialDaysLeft(s) <= 7).sort((a, b) => trialDaysLeft(a) - trialDaysLeft(b));
   const todayIso = isoLocal(today());
   const in7 = isoLocal(new Date(Date.now() + 7 * 86400000));
   const weekEvents = evItems.filter(e => e.event_date >= todayIso && e.event_date <= in7);
@@ -41,9 +58,9 @@ export async function render(view) {
   const upcoming = sortedSubs.filter(s => daysUntil(nextDue(s)) <= 30).slice(0, 5);
   const next = sortedSubs[0];
 
-  // Donut ανά κατηγορία
+  // Donut ανά κατηγορία (χωρίς τις δοκιμές — δεν κοστίζουν ακόμα)
   const byCat = {};
-  for (const s of subs) byCat[s.category] = (byCat[s.category] || 0) + monthlyCost(s);
+  for (const s of subs.filter(x => !isInTrial(x))) byCat[s.category] = (byCat[s.category] || 0) + monthlyCost(s);
   const donutItems = Object.entries(byCat)
     .sort((a, b) => b[1] - a[1])
     .map(([cat, v]) => ({ label: CATEGORIES[cat] || "Άλλο", value: v, color: CATEGORY_COLORS[cat] || CATEGORY_COLORS.other }));
@@ -54,11 +71,26 @@ export async function render(view) {
 
   view.innerHTML = `
     <div class="page-head"><h1>Επισκόπηση</h1></div>
+
+    ${endingTrials.length ? `<div class="alert-trial">
+      ${icons.bell}
+      <div>
+        <strong>Δωρεάν δοκιμή λήγει σύντομα</strong>
+        <ul>${endingTrials.map(s => {
+          const days = trialDaysLeft(s);
+          const when = days === 0 ? "σήμερα" : days === 1 ? "αύριο" : `σε ${days} ημέρες`;
+          return `<li><b>${escapeHtml(s.name)}</b> — ${when}, μετά ${fmt(myShare(s))} ανά ${s.cycle === "yearly" ? "έτος" : s.cycle === "weekly" ? "εβδομάδα" : "μήνα"}. Ακύρωσε αν δεν το θες.</li>`;
+        }).join("")}</ul>
+      </div>
+    </div>` : ""}
+
     <div class="stats">
       <div class="stat"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
       <div class="stat"><div class="label">Επόμενη πληρωμή</div><div class="value" style="font-size:16px">${next ? escapeHtml(next.name) + " · " + fmtDateShort(nextDue(next)) : "—"}</div></div>
       <div class="stat"><div class="label">Εκκρεμείς εργασίες</div><div class="value">${pendingTodos.length}</div></div>
       <div class="stat"><div class="label">Υποχρεώσεις 7 ημερών</div><div class="value">${weekEvents.length}</div></div>
+      ${owedTotal > 0 ? `<div class="stat"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owedTotal)}</div></div>` : ""}
+      ${trials.length ? `<div class="stat"><div class="label">Σε δοκιμή</div><div class="value">${trials.length}</div></div>` : ""}
     </div>
 
     ${subs.length ? `<div class="charts">
@@ -81,9 +113,9 @@ export async function render(view) {
           const txt = days === 0 ? "Σήμερα" : days === 1 ? "Αύριο" : fmtDateShort(d);
           return `<div class="card" style="padding:10px 14px">
             <div class="logo" style="background:${s.color};width:34px;height:34px;font-size:15px">${escapeHtml(s.name[0].toUpperCase())}</div>
-            <div class="card-main"><div class="name">${escapeHtml(s.name)}</div></div>
+            <div class="card-main"><div class="name">${escapeHtml(s.name)}${isInTrial(s) ? ` <span class="badge badge-trial">ΛΗΞΗ ΔΟΚΙΜΗΣ</span>` : ""}</div></div>
             <div class="card-right" style="width:auto;order:0;display:block;text-align:right">
-              <div class="price" style="font-size:14px">${fmt(s.price)}</div>
+              <div class="price" style="font-size:14px">${fmt(myShare(s))}</div>
               <div class="due ${cls}" style="margin-top:0">${txt}</div>
             </div>
           </div>`;
@@ -110,5 +142,23 @@ export async function render(view) {
           <a href="#/calendar" class="btn btn-ghost">Ημερολόγιο</a>
         </div>
       </div>
-    </div>`;
+    </div>
+
+    ${debtList.length ? `<div class="chart-card" style="margin-top:12px">
+      <h3>Μου χρωστάνε · σύνολο ${fmt(owedTotal)}</h3>
+      <div class="list">
+        ${debtList.map(([name, amount]) => {
+          const forSubs = subs.filter(s => unpaidMembers(s).some(m => m.name === name)).map(s => s.name);
+          return `<div class="card" style="padding:10px 14px">
+            <div class="logo" style="background:var(--surface2);width:34px;height:34px;font-size:15px;color:var(--text)">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+            <div class="card-main">
+              <div class="name">${escapeHtml(name)}</div>
+              <div class="meta">${escapeHtml(forSubs.join(", "))}</div>
+            </div>
+            <div class="price">${fmt(amount)}</div>
+          </div>`;
+        }).join("")}
+      </div>
+      <p class="hint" style="margin-top:10px">Σημείωσε ποιος πλήρωσε από τη σελίδα «Συνδρομές», πατώντας το όνομά του.</p>
+    </div>` : ""}`;
 }

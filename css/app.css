@@ -153,6 +153,46 @@ main#view {
   display: inline-block; font-size: 11.5px; padding: 2px 9px; border-radius: 20px;
   background: var(--surface2); border: 1px solid var(--border); color: var(--muted); margin-left: 6px;
 }
+.badge {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .5px;
+  padding: 2px 8px; border-radius: 6px; margin-left: 6px; vertical-align: middle;
+}
+.badge-trial { background: rgba(227, 179, 65, .18); color: var(--warn); border: 1px solid rgba(227, 179, 65, .45); }
+
+/* Πρόσωπα σε μοιρασμένη συνδρομή */
+.members-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.member-chip {
+  font-size: 12.5px; padding: 8px 13px; border-radius: 20px; min-height: 40px;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  transition: border-color .2s, color .2s, background .2s;
+}
+.member-chip:hover { border-color: var(--border-strong); color: var(--text); }
+.member-chip.paid { background: rgba(63, 185, 80, .14); border-color: rgba(63, 185, 80, .5); color: #7ee39a; }
+.member-chip.unpaid { border-color: rgba(227, 179, 65, .4); color: var(--warn); }
+
+/* Επεξεργαστής προσώπων στη φόρμα */
+.members-edit { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.member-row { display: flex; gap: 6px; align-items: center; }
+.member-row input { flex: 1; }
+.btn-sm { padding: 7px 14px; min-height: 38px; font-size: 13px; }
+.hint { color: var(--muted); font-size: 12.5px; margin-top: 8px; line-height: 1.45; }
+.check-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-4);
+  font-size: 14.5px; cursor: pointer; min-height: 44px;
+}
+.check-row input { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+
+/* Προειδοποίηση λήξης δοκιμής */
+.alert-trial {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: linear-gradient(135deg, rgba(227, 179, 65, .14), rgba(227, 179, 65, .05));
+  border: 1px solid rgba(227, 179, 65, .4); border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5); margin-bottom: var(--space-4);
+}
+.alert-trial svg { width: 22px; height: 22px; color: var(--warn); flex-shrink: 0; margin-top: 2px; }
+.alert-trial strong { color: var(--warn); font-size: 14.5px; }
+.alert-trial ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+
 .card-right { text-align: right; flex-shrink: 0; }
 .card-right .price { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
 .card-right .cycle { color: var(--muted); font-size: 12px; }

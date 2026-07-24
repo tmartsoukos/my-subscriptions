@@ -91,21 +91,50 @@ Deno.serve(async (req: Request) => {
   const horizon = new Date(today); horizon.setFullYear(horizon.getFullYear() + 1);
   const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
 
+  const money = (n: number) => n.toFixed(2).replace(".", ",");
+
   // Πληρωμές συνδρομών: επόμενες 6 εμφανίσεις ανά συνδρομή (all-day)
   for (const s of subs ?? []) {
-    let d = new Date(s.next_date + "T00:00:00");
+    const memberList = Array.isArray(s.members) ? s.members : [];
+    const share = Number(s.price) / (1 + memberList.length);
+    const shareTxt = memberList.length
+      ? `${money(share)} € (μερίδιό σου από ${money(Number(s.price))} €, ${1 + memberList.length} άτομα)`
+      : `${money(Number(s.price))} €`;
+    const inTrial = s.trial_end && new Date(s.trial_end + "T00:00:00") >= today;
+
+    // Λήξη δωρεάν δοκιμής: ξεχωριστό γεγονός με υπενθύμιση 2 ημέρες πριν
+    if (inTrial) {
+      const td = new Date(s.trial_end + "T00:00:00");
+      const tdEnd = new Date(td); tdEnd.setDate(tdEnd.getDate() + 1);
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:trial-${s.id}@my-dashboard`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${dateStr(td)}`,
+        `DTEND;VALUE=DATE:${dateStr(tdEnd)}`,
+        fold(`SUMMARY:${esc(`Λήγει η δωρεάν δοκιμή: ${s.name}`)}`),
+        fold(`DESCRIPTION:${esc(`Από σήμερα χρεώνεσαι ${shareTxt}. Ακύρωσε τώρα αν δεν το θες.`)}`),
+        "BEGIN:VALARM",
+        "ACTION:DISPLAY",
+        "TRIGGER:-P2D",
+        fold(`DESCRIPTION:${esc(`Σε 2 ημέρες λήγει η δωρεάν δοκιμή: ${s.name}`)}`),
+        "END:VALARM",
+        "END:VEVENT"
+      );
+    }
+
+    let d = new Date((inTrial ? s.trial_end : s.next_date) + "T00:00:00");
     while (d < today) d = addCycle(d, s.cycle);
     for (let i = 0; i < 6 && d <= horizon; i++) {
       const dEnd = new Date(d); dEnd.setDate(dEnd.getDate() + 1);
-      const price = Number(s.price).toFixed(2).replace(".", ",");
       lines.push(
         "BEGIN:VEVENT",
         `UID:sub-${s.id}-${dateStr(d)}@my-dashboard`,
         `DTSTAMP:${stamp}`,
         `DTSTART;VALUE=DATE:${dateStr(d)}`,
         `DTEND;VALUE=DATE:${dateStr(dEnd)}`,
-        fold(`SUMMARY:${esc(`Πληρωμή: ${s.name} (${price} €)`)}`),
-        fold(`DESCRIPTION:${esc(`Συνδρομή ${s.name} — ${price} €`)}`),
+        fold(`SUMMARY:${esc(`Πληρωμή: ${s.name} (${money(share)} €)`)}`),
+        fold(`DESCRIPTION:${esc(`Συνδρομή ${s.name} — ${shareTxt}`)}`),
         "TRANSP:TRANSPARENT",
         "END:VEVENT"
       );

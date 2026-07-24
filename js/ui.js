@@ -20,9 +20,35 @@ export function isoLocal(d) {
 export function today() { const d = new Date(); d.setHours(0,0,0,0); return d; }
 export function daysUntil(d) { return Math.round((d - today()) / 86400000); }
 
+// ---- Δωρεάν δοκιμαστική περίοδος ----
+// Σε δοκιμή όσο η trial_end δεν έχει περάσει· η trial_end είναι και η πρώτη χρέωση.
+export function isInTrial(sub) {
+  return !!sub.trial_end && new Date(sub.trial_end + "T00:00:00") >= today();
+}
+export function trialDaysLeft(sub) {
+  return daysUntil(new Date(sub.trial_end + "T00:00:00"));
+}
+
+// ---- Μοιρασμένες συνδρομές ----
+export function members(sub) {
+  return Array.isArray(sub.members) ? sub.members : [];
+}
+export function shareCount(sub) { return 1 + members(sub).length; }   // εγώ + οι υπόλοιποι
+export function isShared(sub) { return shareCount(sub) > 1; }
+// Στρογγυλοποίηση στο λεπτό ώστε τα εμφανιζόμενα ποσά να αθροίζονται σωστά
+export function myShare(sub) {
+  return Math.round((Number(sub.price) / shareCount(sub)) * 100) / 100;
+}
+// Όσοι δεν έχουν πληρώσει για την τρέχουσα χρέωση
+export function unpaidMembers(sub) {
+  const cycleIso = isoLocal(nextDue(sub));
+  return members(sub).filter(m => m.paid_for !== cycleIso);
+}
+
 // Επόμενη χρέωση συνδρομής: κύλιση μπροστά αν πέρασε
 export function nextDue(sub) {
   const t = today();
+  if (isInTrial(sub)) return new Date(sub.trial_end + "T00:00:00"); // πρώτη χρέωση = λήξη δοκιμής
   let d = new Date(sub.next_date + "T00:00:00");
   while (d < t) {
     if (sub.cycle === "weekly") d.setDate(d.getDate() + 7);
@@ -31,10 +57,12 @@ export function nextDue(sub) {
   }
   return d;
 }
+// Το δικό μου μηνιαίο κόστος (μερίδιο, ανηγμένο σε μήνα)
 export function monthlyCost(sub) {
-  if (sub.cycle === "weekly") return sub.price * 52 / 12;
-  if (sub.cycle === "yearly") return sub.price / 12;
-  return Number(sub.price);
+  const p = myShare(sub);
+  if (sub.cycle === "weekly") return p * 52 / 12;
+  if (sub.cycle === "yearly") return p / 12;
+  return p;
 }
 
 export const CYCLES = { weekly: "εβδομάδα", monthly: "μήνα", yearly: "έτος" };

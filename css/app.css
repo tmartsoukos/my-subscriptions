@@ -146,6 +146,50 @@ main#view {
   display: flex; align-items: center; justify-content: center;
   font-size: 19px; font-weight: 700; color: #fff;
 }
+.logo svg { width: 24px; height: 24px; }
+.logo-sm { width: 34px; height: 34px; border-radius: 10px; font-size: 15px; }
+.logo-sm svg { width: 19px; height: 19px; }
+
+/* Στοιχεία λογαριασμού στην κάρτα */
+.acct-row { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 5px; }
+.acct { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; }
+.acct svg { width: 14px; height: 14px; opacity: .8; }
+.form-section { border-top: 1px solid var(--border); padding-top: var(--space-3); margin-bottom: var(--space-4); }
+.form-section > summary {
+  cursor: pointer; color: var(--muted); font-size: 13.5px; padding: 6px 0;
+  list-style: none; display: flex; align-items: center; gap: 8px; min-height: 40px;
+}
+.form-section > summary::before { content: "▸"; transition: transform .2s; display: inline-block; }
+.form-section[open] > summary::before { transform: rotate(90deg); }
+.form-section > summary::-webkit-details-marker { display: none; }
+
+/* Σύρσιμο σε λίστες */
+.swipe-wrap { position: relative; }
+.swipe-wrap .card { position: relative; z-index: 1; will-change: transform; touch-action: pan-y; }
+.swipe-bg {
+  position: absolute; inset: 0; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px; font-size: 13px; font-weight: 600; overflow: hidden;
+}
+.swipe-bg span { display: inline-flex; align-items: center; gap: 7px; opacity: 0; transition: opacity .15s; }
+.swipe-bg svg { width: 17px; height: 17px; }
+.sw-delete { color: var(--danger); }
+.sw-done { color: var(--ok); }
+.swiping-right .swipe-bg { background: rgba(248, 81, 73, .12); }
+.swiping-right .sw-delete { opacity: 1; }
+.swiping-left .swipe-bg { background: rgba(63, 185, 80, .12); }
+.swiping-left .sw-done { opacity: 1; }
+.swipe-armed .swipe-bg span { opacity: 1; transform: scale(1.06); }
+.swipe-hint { margin-bottom: var(--space-2); }
+@media (hover: hover) and (pointer: fine) { .swipe-hint { display: none; } }
+
+/* Toast με ενέργεια */
+.toast-with-action { display: flex; align-items: center; gap: 14px; }
+.toast-btn {
+  background: none; border: none; color: var(--accent); font-weight: 700;
+  font-size: 13.5px; padding: 6px 4px; min-height: 32px;
+}
+.toast-btn:hover { text-decoration: underline; }
 .card-main { flex: 1; min-width: 0; }
 .card-main .name { font-weight: 600; font-size: 15.5px; margin-bottom: 3px; }
 .card-main .meta { color: var(--muted); font-size: 13px; }

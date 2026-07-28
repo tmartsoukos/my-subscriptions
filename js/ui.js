@@ -95,6 +95,9 @@ export const icons = {
   chevronR: svg('<polyline points="9 18 15 12 9 6"/>'),
   bell: svg('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
   wallet: svg('<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'),
+  external: svg('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'),
+  card2: svg('<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>'),
+  user: svg('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
   apple: svg('<path d="M12 20.94c1.5 0 2.75-.63 3.86-1.89 1.13-1.28 1.64-2.58 1.64-2.63-.03-.01-3.13-1.2-3.13-4.53 0-2.88 2.36-4.16 2.46-4.23-1.35-1.97-3.43-2.02-4-2.02-1.7 0-3.1 1.03-3.9 1.03-.83 0-2.1-1-3.46-.97-1.78.03-3.42 1.03-4.33 2.62-1.85 3.21-.47 7.95 1.33 10.55.88 1.27 1.93 2.7 3.3 2.65 1.32-.05 1.82-.86 3.42-.86 1.59 0 2.04.86 3.43.83Z"/><path d="M15.5 3.5c.73-.88 1.22-2.1 1.08-3.32-1.05.04-2.32.7-3.07 1.58-.68.78-1.27 2.03-1.11 3.22 1.17.09 2.36-.6 3.1-1.48Z"/>')
 };
 
@@ -111,6 +114,76 @@ export function toast(msg, type = "ok") {
     el.classList.remove("show");
     setTimeout(() => el.remove(), 300);
   }, 3500);
+}
+
+// Toast με κουμπί ενέργειας (π.χ. «Αναίρεση»)
+export function toastAction(msg, actionLabel, onAction, ms = 6000) {
+  const root = document.getElementById("toastRoot");
+  const el = document.createElement("div");
+  el.className = "toast toast-ok toast-with-action";
+  el.setAttribute("role", "status");
+  el.innerHTML = `<span>${escapeHtml(msg)}</span><button class="toast-btn">${escapeHtml(actionLabel)}</button>`;
+  root.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  const close = () => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 300);
+  };
+  const timer = setTimeout(close, ms);
+  el.querySelector(".toast-btn").addEventListener("click", async () => {
+    clearTimeout(timer);
+    close();
+    await onAction();
+  });
+}
+
+// ---- Χειρονομίες σύρσιμο (μόνο σε οθόνες αφής) ----
+// Σύρσιμο αριστερά -> onLeft, δεξιά -> onRight. Δεν εμποδίζει την κάθετη κύλιση
+// ούτε τη χειρονομία επιστροφής του iOS (αγνοεί αγγίγματα στα 24px της αριστερής άκρης).
+export function bindSwipe(el, { onLeft, onRight }) {
+  const THRESHOLD = 72;
+  let startX = 0, startY = 0, dx = 0, active = false, decided = false;
+  const wrap = el.parentElement;
+
+  el.addEventListener("touchstart", e => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX < 24) return;
+    startX = t.clientX; startY = t.clientY;
+    dx = 0; active = true; decided = false;
+    el.style.transition = "none";
+  }, { passive: true });
+
+  el.addEventListener("touchmove", e => {
+    if (!active) return;
+    const t = e.touches[0];
+    const ddx = t.clientX - startX, ddy = t.clientY - startY;
+    if (!decided) {
+      if (Math.abs(ddx) < 10 && Math.abs(ddy) < 10) return;
+      if (Math.abs(ddy) >= Math.abs(ddx)) { active = false; return; } // κάθετη κύλιση
+      decided = true;
+    }
+    dx = ddx;
+    el.style.transform = `translateX(${dx}px)`;
+    wrap.classList.toggle("swiping-left", dx < -20);
+    wrap.classList.toggle("swiping-right", dx > 20);
+    wrap.classList.toggle("swipe-armed", Math.abs(dx) >= THRESHOLD);
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+
+  const finish = () => {
+    if (!active) return;
+    active = false;
+    el.style.transition = "transform .2s ease-out";
+    el.style.transform = "";
+    wrap.classList.remove("swiping-left", "swiping-right", "swipe-armed");
+    const moved = dx;
+    dx = 0;
+    if (moved <= -THRESHOLD) onLeft?.();
+    else if (moved >= THRESHOLD) onRight?.();
+  };
+  el.addEventListener("touchend", finish);
+  el.addEventListener("touchcancel", finish);
 }
 
 // ---- Modal ----

@@ -1,5 +1,8 @@
 import { todos } from "../db.js";
-import { escapeHtml, isoLocal, daysUntil, fmtDateShort, icons, toast, openModal, confirmModal } from "../ui.js";
+import {
+  escapeHtml, isoLocal, daysUntil, fmtDateShort, icons, toast, toastAction,
+  openModal, confirmModal, bindSwipe
+} from "../ui.js";
 
 const PRIO_LABEL = { 1: "Υψηλή", 2: "Μεσαία", 3: "Χαμηλή" };
 let items = [];
@@ -52,14 +55,21 @@ function itemHtml(t) {
     const label = days < 0 ? "Εκπρόθεσμη" : days === 0 ? "Σήμερα" : days === 1 ? "Αύριο" : fmtDateShort(new Date(t.due_date + "T00:00:00"));
     dueHtml = `<span class="todo-due ${days <= 0 ? "overdue" : ""}">${label}</span>`;
   }
-  return `<div class="card todo-item">
-    <button class="todo-check ${t.done ? "done" : ""}" data-toggle="${t.id}" aria-label="${t.done ? "Αναίρεση ολοκλήρωσης" : "Ολοκλήρωση"}: ${escapeHtml(t.title)}">${icons.check}</button>
-    <span class="prio prio-${t.priority}" title="Προτεραιότητα: ${PRIO_LABEL[t.priority]}"></span>
-    <span class="todo-title ${t.done ? "done" : ""}">${escapeHtml(t.title)}</span>
-    ${dueHtml}
-    <div class="card-actions">
-      <button class="icon-btn" data-edit="${t.id}" aria-label="Επεξεργασία">${icons.edit}</button>
-      <button class="icon-btn" data-del="${t.id}" aria-label="Διαγραφή">${icons.trash}</button>
+  // Το φόντο αποκαλύπτεται κατά το σύρσιμο: δεξιά άκρη = ολοκλήρωση, αριστερή = διαγραφή
+  return `<div class="swipe-wrap">
+    <div class="swipe-bg" aria-hidden="true">
+      <span class="sw-delete">${icons.trash} Διαγραφή</span>
+      <span class="sw-done">${t.done ? "Αναίρεση" : "Ολοκλήρωση"} ${icons.check}</span>
+    </div>
+    <div class="card todo-item" data-swipe="${t.id}">
+      <button class="todo-check ${t.done ? "done" : ""}" data-toggle="${t.id}" aria-label="${t.done ? "Αναίρεση ολοκλήρωσης" : "Ολοκλήρωση"}: ${escapeHtml(t.title)}">${icons.check}</button>
+      <span class="prio prio-${t.priority}" title="Προτεραιότητα: ${PRIO_LABEL[t.priority]}"></span>
+      <span class="todo-title ${t.done ? "done" : ""}">${escapeHtml(t.title)}</span>
+      ${dueHtml}
+      <div class="card-actions">
+        <button class="icon-btn" data-edit="${t.id}" aria-label="Επεξεργασία">${icons.edit}</button>
+        <button class="icon-btn" data-del="${t.id}" aria-label="Διαγραφή">${icons.trash}</button>
+      </div>
     </div>
   </div>`;
 }
@@ -79,31 +89,53 @@ export async function render(view) {
       <div class="stat"><div class="label">Εκκρεμείς</div><div class="value">${pending.length}</div></div>
       <div class="stat"><div class="label">Ολοκληρωμένες</div><div class="value">${done.length}</div></div>
     </div>
+    ${items.length ? `<p class="hint swipe-hint">Σύρε μια εργασία αριστερά για ολοκλήρωση, δεξιά για διαγραφή.</p>` : ""}
     ${pending.length ? `<div class="section-title">Εκκρεμείς</div><div class="list">${pending.map(itemHtml).join("")}</div>` : ""}
     ${done.length ? `<div class="section-title">Ολοκληρωμένες</div><div class="list">${done.map(itemHtml).join("")}</div>` : ""}
     ${!items.length ? `<div class="empty">${icons.check}<p>Καμία εργασία ακόμα. Πρόσθεσε την πρώτη σου!</p><button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα εργασία</button></div>` : ""}
   `;
 
   const rerender = () => render(view);
+
+  async function toggleDone(t) {
+    await todos.update(t.id, { done: !t.done });
+    await rerender();
+  }
+  async function removeTodo(t) {
+    await todos.remove(t.id);
+    await rerender();
+    toastAction("Η εργασία διαγράφηκε", "Αναίρεση", async () => {
+      // Επαναφορά με το ίδιο id ώστε να μη χαθεί η σειρά/αναφορά
+      await todos.insert({
+        id: t.id, title: t.title, done: t.done,
+        priority: t.priority, due_date: t.due_date
+      });
+      await rerender();
+      toast("Επαναφέρθηκε");
+    });
+  }
+
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
+
+  // Χειρονομίες σε κάθε κάρτα
+  view.querySelectorAll("[data-swipe]").forEach(card => {
+    const t = items.find(x => x.id === card.dataset.swipe);
+    bindSwipe(card, {
+      onLeft: () => toggleDone(t),
+      onRight: () => removeTodo(t)
+    });
+  });
+
   view.addEventListener("click", async e => {
     const toggleBtn = e.target.closest("[data-toggle]");
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");
-    if (toggleBtn) {
-      const t = items.find(x => x.id === toggleBtn.dataset.toggle);
-      await todos.update(t.id, { done: !t.done });
-      await rerender();
-    }
+    if (toggleBtn) await toggleDone(items.find(x => x.id === toggleBtn.dataset.toggle));
     if (editBtn) openForm(items.find(x => x.id === editBtn.dataset.edit), rerender);
     if (delBtn) {
       const t = items.find(x => x.id === delBtn.dataset.del);
-      confirmModal(`Διαγραφή της εργασίας «${t.title}»;`, async () => {
-        await todos.remove(t.id);
-        toast("Η εργασία διαγράφηκε");
-        await rerender();
-      });
+      confirmModal(`Διαγραφή της εργασίας «${t.title}»;`, () => removeTodo(t));
     }
   });
 }

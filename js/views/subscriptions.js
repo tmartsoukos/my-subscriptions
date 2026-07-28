@@ -5,6 +5,7 @@ import {
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
   colorPickerHtml, bindColorPicker, pickedColor
 } from "../ui.js";
+import { logoFor } from "../logos.js";
 
 let items = [];
 
@@ -58,7 +59,23 @@ function formHtml(sub) {
     <div class="field">
       <label>Χρώμα</label>
       ${colorPickerHtml(sub ? sub.color : "#7c6cf6")}
-    </div>`;
+    </div>
+
+    <details class="form-section" ${sub?.cancel_url || sub?.payment_method || sub?.account_note ? "open" : ""}>
+      <summary>Στοιχεία λογαριασμού (προαιρετικά)</summary>
+      <div class="field">
+        <label for="fPay">Τρόπος πληρωμής</label>
+        <input type="text" id="fPay" placeholder="π.χ. Visa ****4321" value="${sub?.payment_method ? escapeHtml(sub.payment_method) : ""}">
+      </div>
+      <div class="field">
+        <label for="fAccount">Λογαριασμός / email</label>
+        <input type="text" id="fAccount" inputmode="email" placeholder="π.χ. themis@gmail.com" value="${sub?.account_note ? escapeHtml(sub.account_note) : ""}">
+      </div>
+      <div class="field">
+        <label for="fCancel">Σύνδεσμος ακύρωσης</label>
+        <input type="url" id="fCancel" inputmode="url" placeholder="netflix.com/cancelplan" value="${sub?.cancel_url ? escapeHtml(sub.cancel_url) : ""}">
+      </div>
+    </details>`;
 }
 
 // Διαχείριση της λίστας προσώπων μέσα στο modal (κρατά το paid_for των υπαρχόντων)
@@ -126,13 +143,20 @@ function readForm(overlay) {
   const mem = (overlay._memberState || [])
     .map(m => ({ name: m.name.trim(), paid_for: m.paid_for || null }))
     .filter(m => m.name);
+  // Σύνδεσμος χωρίς πρωτόκολλο -> https://
+  let cancel = overlay.querySelector("#fCancel").value.trim();
+  if (cancel && !/^https?:\/\//i.test(cancel)) cancel = "https://" + cancel;
+
   return {
     name, price, next_date: date,
     trial_end: isTrial ? date : null,
     members: mem,
     cycle: overlay.querySelector("#fCycle").value,
     category: overlay.querySelector("#fCat").value,
-    color: pickedColor(overlay)
+    color: pickedColor(overlay),
+    payment_method: overlay.querySelector("#fPay").value.trim() || null,
+    account_note: overlay.querySelector("#fAccount").value.trim() || null,
+    cancel_url: cancel || null
   };
 }
 
@@ -180,8 +204,13 @@ function cardHtml(s) {
     }).join("")}
   </div>` : "";
 
+  const accountBits = [
+    s.payment_method ? `<span class="acct">${icons.card2}${escapeHtml(s.payment_method)}</span>` : "",
+    s.account_note ? `<span class="acct">${icons.user}${escapeHtml(s.account_note)}</span>` : ""
+  ].filter(Boolean).join("");
+
   return `<div class="card ${cardClass}">
-    <div class="logo" style="background:${s.color}">${escapeHtml(s.name.charAt(0).toUpperCase())}</div>
+    <div class="logo" style="background:${s.color}">${logoFor(s)}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(s.name)}
         ${trial ? `<span class="badge badge-trial">ΔΟΚΙΜΗ</span>` : ""}
@@ -189,6 +218,7 @@ function cardHtml(s) {
         ${shared ? `<span class="chip">${shareCount(s)} άτομα</span>` : ""}
       </div>
       <div class="meta">${CYCLE_LABEL[s.cycle]} · ${trial ? "δωρεάν τώρα, μετά " : ""}${fmt(monthlyCost(s))}/μήνα${shared ? " (μερίδιό σου)" : ""}</div>
+      ${accountBits ? `<div class="acct-row">${accountBits}</div>` : ""}
       ${membersRow}
     </div>
     <div class="card-right">
@@ -197,6 +227,8 @@ function cardHtml(s) {
       <div class="due ${dueClass}">${dueText}</div>
     </div>
     <div class="card-actions">
+      ${s.cancel_url ? `<a class="icon-btn" href="${escapeHtml(s.cancel_url)}" target="_blank" rel="noopener noreferrer"
+        title="Ακύρωση συνδρομής" aria-label="Άνοιγμα σελίδας ακύρωσης για ${escapeHtml(s.name)}">${icons.external}</a>` : ""}
       <button class="icon-btn" data-edit="${s.id}" aria-label="Επεξεργασία ${escapeHtml(s.name)}">${icons.edit}</button>
       <button class="icon-btn" data-del="${s.id}" aria-label="Διαγραφή ${escapeHtml(s.name)}">${icons.trash}</button>
     </div>

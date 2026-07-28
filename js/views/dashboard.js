@@ -4,6 +4,7 @@ import {
   isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, icons, today
 } from "../ui.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
+import { logoFor } from "../logos.js";
 
 // Χρεώσεις που πέφτουν σε κάθε έναν από τους επόμενους 12 μήνες
 function monthlyProjection(subs) {
@@ -112,7 +113,7 @@ export async function render(view) {
           const cls = days === 0 ? "today" : days <= 7 ? "soon" : "ok";
           const txt = days === 0 ? "Σήμερα" : days === 1 ? "Αύριο" : fmtDateShort(d);
           return `<div class="card" style="padding:10px 14px">
-            <div class="logo" style="background:${s.color};width:34px;height:34px;font-size:15px">${escapeHtml(s.name[0].toUpperCase())}</div>
+            <div class="logo logo-sm" style="background:${s.color}">${logoFor(s)}</div>
             <div class="card-main"><div class="name">${escapeHtml(s.name)}${isInTrial(s) ? ` <span class="badge badge-trial">ΛΗΞΗ ΔΟΚΙΜΗΣ</span>` : ""}</div></div>
             <div class="card-right" style="width:auto;order:0;display:block;text-align:right">
               <div class="price" style="font-size:14px">${fmt(myShare(s))}</div>

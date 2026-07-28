@@ -39,6 +39,20 @@ function isNetworkError(e) {
   return e instanceof TypeError || /fetch|network|Failed to/i.test(e.message || "");
 }
 
+// Αν λείπει στήλη από τη βάση (δεν έχει τρέξει ακόμα το migration), αφαίρεσέ την
+// και ξαναδοκίμασε, ώστε να μη σπάει η αποθήκευση.
+async function withMissingColumnRetry(payload, run) {
+  let body = { ...payload };
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data, error } = await run(body);
+    if (!error) return data;
+    const missing = error.code === "PGRST204" && /'([^']+)' column/.exec(error.message)?.[1];
+    if (!missing || !(missing in body)) throw error;
+    delete body[missing];
+  }
+  throw new Error("Η βάση δεν έχει ενημερωθεί με τα νέα πεδία.");
+}
+
 // ---- Data layer: CRUD ανά πίνακα με cache για offline ανάγνωση ----
 export function store(table, orderColumn, ascending = true) {
   const cacheKey = "cache:" + table;
@@ -62,14 +76,10 @@ export function store(table, orderColumn, ascending = true) {
       }
     },
     async insert(row) {
-      const { data, error } = await sb.from(table).insert(row).select().single();
-      if (error) throw error;
-      return data;
+      return withMissingColumnRetry(row, r => sb.from(table).insert(r).select().single());
     },
     async update(id, patch) {
-      const { data, error } = await sb.from(table).update(patch).eq("id", id).select().single();
-      if (error) throw error;
-      return data;
+      return withMissingColumnRetry(patch, p => sb.from(table).update(p).eq("id", id).select().single());
     },
     async remove(id) {
       const { error } = await sb.from(table).delete().eq("id", id);

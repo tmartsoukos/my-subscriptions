@@ -1,5 +1,6 @@
 import { events, subscriptions } from "../db.js";
 import { escapeHtml, isoLocal, fmt, icons, toast, openModal, confirmModal, nextDue, today } from "../ui.js";
+import { logoFor } from "../logos.js";
 
 const DOW = ["Δευ", "Τρί", "Τετ", "Πέμ", "Παρ", "Σάβ", "Κυρ"];
 const EVENT_COLORS = ["#58a6ff", "#7c6cf6", "#3fb950", "#e3b341", "#f06292", "#f85149"];
@@ -104,7 +105,7 @@ function openDay(dateIso, payments, rerender) {
     ${pays.length ? `<div class="section-title" style="margin-top:0">Πληρωμές</div>
       <div class="list">${pays.map(s => `
         <div class="card" style="padding:10px 14px">
-          <div class="logo" style="background:${s.color};width:34px;height:34px;font-size:15px">${escapeHtml(s.name[0].toUpperCase())}</div>
+          <div class="logo logo-sm" style="background:${s.color}">${logoFor(s)}</div>
           <div class="card-main"><div class="name">${escapeHtml(s.name)}</div></div>
           <div class="price">${fmt(s.price)}</div>
         </div>`).join("")}</div>` : ""}

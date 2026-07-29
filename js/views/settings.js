@@ -33,6 +33,26 @@ export async function render(view) {
     </div>
 
     <div class="settings-block">
+      <h3>${icons.mic} Siri και Συντομεύσεις</h3>
+      <p>Φτιάξε Συντόμευση: <em>Λήψη περιεχομένων URL</em> με ένα από τα παρακάτω, μετά
+      <em>Λήψη τιμής λεξικού «text»</em> και <em>Εκφώνηση κειμένου</em>. Δώσε της όνομα και φώναξέ τη με τη Siri.</p>
+      <div class="url-box" style="margin-bottom:8px">
+        <input type="text" id="siriSummary" readonly value="Φόρτωση..." aria-label="URL σύνοψης">
+        <button class="btn btn-ghost" data-copy="siriSummary">${icons.copy}</button>
+      </div>
+      <div class="url-box" style="margin-bottom:8px">
+        <input type="text" id="siriToday" readonly value="Φόρτωση..." aria-label="URL για σήμερα">
+        <button class="btn btn-ghost" data-copy="siriToday">${icons.copy}</button>
+      </div>
+      <div class="url-box">
+        <input type="text" id="siriAdd" readonly value="Φόρτωση..." aria-label="URL προσθήκης εργασίας">
+        <button class="btn btn-ghost" data-copy="siriAdd">${icons.copy}</button>
+      </div>
+      <p class="hint">Στο τρίτο, αντικατάστησε το <code>ΚΕΙΜΕΝΟ</code> με μεταβλητή «Υπαγορευμένο κείμενο» ώστε να λες
+      «Σιρι, νέα εργασία» και να την υπαγορεύεις.</p>
+    </div>
+
+    <div class="settings-block">
       <h3>${icons.card} Εισαγωγή παλιών δεδομένων</h3>
       <p>Αν υπάρχουν συνδρομές αποθηκευμένες τοπικά σε αυτόν τον browser (από την παλιά έκδοση), μπορείς να τις εισάγεις στον λογαριασμό σου.</p>
       <button class="btn btn-ghost" id="btnMigrate">Εισαγωγή από τοπική αποθήκευση</button>
@@ -50,10 +70,19 @@ export async function render(view) {
     const token = await getOrCreateIcsToken();
     urlInput.value = `webcal://${new URL(FUNCTIONS_URL).host}/functions/v1/ics-feed?token=${token}`;
     tokenInput.value = token;
+    view.querySelector("#siriSummary").value = `${FUNCTIONS_URL}/assistant?token=${token}&q=summary`;
+    view.querySelector("#siriToday").value = `${FUNCTIONS_URL}/assistant?token=${token}&q=today`;
+    view.querySelector("#siriAdd").value = `${FUNCTIONS_URL}/assistant?token=${token}&add=task&text=ΚΕΙΜΕΝΟ`;
   } catch (e) {
     urlInput.value = "Σφάλμα φόρτωσης token";
     tokenInput.value = "—";
   }
+
+  view.querySelectorAll("[data-copy]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(view.querySelector("#" + btn.dataset.copy).value);
+      toast("Αντιγράφηκε");
+    }));
 
   view.querySelector("#btnCopyToken").addEventListener("click", async () => {
     await navigator.clipboard.writeText(tokenInput.value);

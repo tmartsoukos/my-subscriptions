@@ -1,4 +1,4 @@
-import { events, subscriptions } from "../db.js";
+import { events, subscriptions, courses } from "../db.js";
 import { escapeHtml, isoLocal, fmt, icons, toast, openModal, confirmModal, nextDue, today } from "../ui.js";
 import { logoFor } from "../logos.js";
 
@@ -6,7 +6,7 @@ const DOW = ["Δευ", "Τρί", "Τετ", "Πέμ", "Παρ", "Σάβ", "Κυρ
 const EVENT_COLORS = ["#58a6ff", "#7c6cf6", "#3fb950", "#e3b341", "#f06292", "#f85149"];
 
 let shown = new Date(); // εμφανιζόμενος μήνας
-let evItems = [], subItems = [];
+let evItems = [], subItems = [], courseList = [];
 
 // Πληρωμές συνδρομών μέσα στον εμφανιζόμενο μήνα (κύλιση ανά κύκλο)
 function paymentsInMonth(year, month) {
@@ -57,6 +57,13 @@ function formHtml(ev, dateIso) {
       <label for="fNotes">Σημειώσεις (προαιρετικό)</label>
       <textarea id="fNotes" style="min-height:70px">${ev?.notes ? escapeHtml(ev.notes) : ""}</textarea>
     </div>
+    ${courseList.length ? `<div class="field">
+      <label for="fCourse">Μάθημα (προαιρετικό)</label>
+      <select id="fCourse">
+        <option value="">—</option>
+        ${courseList.map(c => `<option value="${c.id}" ${ev?.course_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+      </select>
+    </div>` : ""}
     <div class="field">
       <label>Χρώμα</label>
       <div class="colors" data-colorpicker>
@@ -86,6 +93,7 @@ function openForm(ev, dateIso, rerender) {
         title, event_date,
         event_time: overlay.querySelector("#fTime").value || null,
         notes: overlay.querySelector("#fNotes").value.trim() || null,
+        course_id: overlay.querySelector("#fCourse")?.value || null,
         color: overlay.querySelector("[data-colorpicker] .selected")?.dataset.color || EVENT_COLORS[0]
       };
       if (ev) await events.update(ev.id, row);
@@ -144,7 +152,9 @@ function openDay(dateIso, payments, rerender) {
 }
 
 export async function render(view) {
-  [evItems, subItems] = await Promise.all([events.list(), subscriptions.list()]);
+  [evItems, subItems, courseList] = await Promise.all([
+    events.list(), subscriptions.list(), courses.list().catch(() => [])
+  ]);
   const year = shown.getFullYear(), month = shown.getMonth();
   const payments = paymentsInMonth(year, month);
   const byDay = eventsByDay();

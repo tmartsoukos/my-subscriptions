@@ -95,6 +95,10 @@ export const icons = {
   chevronR: svg('<polyline points="9 18 15 12 9 6"/>'),
   bell: svg('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
   wallet: svg('<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'),
+  chart: svg('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'),
+  image: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>'),
+  book: svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'),
+  heart: svg('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8z"/>'),
   mic: svg('<path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/>'),
   bookmark: svg('<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
   star: svg('<path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3 1.1-6.5L2.6 9.3l6.5-.9z"/>'),
@@ -147,7 +151,8 @@ export function micButtonHtml(targetId) {
   return `<button type="button" class="mic-btn" data-mic="${targetId}" aria-label="Υπαγόρευση">${icons.mic}</button>`;
 }
 
-export async function bindMicButtons(root, onFinal) {
+// append: true -> η υπαγόρευση προστίθεται στο υπάρχον κείμενο αντί να το αντικαθιστά
+export async function bindMicButtons(root, onFinal, { append = false } = {}) {
   const { speechSupported, startDictation } = await import("./voice.js");
   root.querySelectorAll("[data-mic]").forEach(btn => {
     if (!speechSupported()) { btn.remove(); return; }
@@ -155,17 +160,20 @@ export async function bindMicButtons(root, onFinal) {
     btn.addEventListener("click", () => {
       const input = root.querySelector("#" + btn.dataset.mic);
       if (stop) { stop(); return; }
+      const base = append ? input.value : "";
+      const sep = append && base && !base.endsWith("\n") ? "\n" : "";
+      const placeholder = input.placeholder;
       btn.classList.add("listening");
       input.placeholder = "Ακούω...";
       stop = startDictation({
-        onInterim: txt => { input.value = txt; },
+        onInterim: txt => { input.value = base + sep + txt; },
         onFinal: txt => {
-          input.value = txt;
+          input.value = base + sep + txt;
           input.dispatchEvent(new Event("input", { bubbles: true }));
           onFinal?.(txt, input);
         },
         onError: msg => toast(msg, "error"),
-        onEnd: () => { btn.classList.remove("listening"); input.placeholder = ""; stop = null; }
+        onEnd: () => { btn.classList.remove("listening"); input.placeholder = placeholder; stop = null; }
       });
     });
   });

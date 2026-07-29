@@ -91,8 +91,39 @@ export function store(table, orderColumn, ascending = true) {
 export const subscriptions = store("subscriptions", "next_date");
 export const todos = store("todos", "created_at", false);
 export const events = store("events", "event_date");
-export const notes = store("notes", "created_at", false);
+export const notes = store("notes", "updated_at", false);
 export const watchlist = store("watchlist", "created_at", false);
+export const courses = store("courses", "semester");
+export const health = store("health_items", "item_date");
+
+// ---- Εικόνες σημειώσεων (ιδιωτικός κάδος, πρόσβαση με signed URL) ----
+const BUCKET = "note-images";
+
+export async function uploadNoteImage(file) {
+  const { data: { user } } = await sb.auth.getUser();
+  const ext = (file.name?.split(".").pop() || "png").toLowerCase().slice(0, 5);
+  const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await sb.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || "image/png", upsert: false
+  });
+  if (error) throw error;
+  return path;
+}
+
+const signedCache = new Map();
+export async function signedImageUrl(path) {
+  const hit = signedCache.get(path);
+  if (hit && hit.expires > Date.now()) return hit.url;
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 3600);
+  if (error) throw error;
+  signedCache.set(path, { url: data.signedUrl, expires: Date.now() + 3000 * 1000 });
+  return data.signedUrl;
+}
+
+export async function deleteNoteImage(path) {
+  await sb.storage.from(BUCKET).remove([path]);
+  signedCache.delete(path);
+}
 
 // ---- ICS token: δημιουργείται μία φορά ανά χρήστη ----
 export async function getOrCreateIcsToken() {

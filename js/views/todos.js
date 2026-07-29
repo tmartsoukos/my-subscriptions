@@ -1,4 +1,4 @@
-import { todos } from "../db.js";
+import { todos, courses } from "../db.js";
 import {
   escapeHtml, isoLocal, daysUntil, fmtDateShort, icons, toast, toastAction,
   openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons
@@ -7,6 +7,18 @@ import { parseGreekTask, speechSupported } from "../voice.js";
 
 const PRIO_LABEL = { 1: "Υψηλή", 2: "Μεσαία", 3: "Χαμηλή" };
 let items = [];
+let courseList = [];
+
+function coursePickerHtml(selectedId) {
+  if (!courseList.length) return "";
+  return `<div class="field">
+    <label for="fCourse">Μάθημα (προαιρετικό)</label>
+    <select id="fCourse">
+      <option value="">—</option>
+      ${courseList.map(c => `<option value="${c.id}" ${selectedId === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+    </select>
+  </div>`;
+}
 
 function formHtml(t) {
   return `
@@ -30,7 +42,8 @@ function formHtml(t) {
         <label for="fDue">Προθεσμία (προαιρετικό)</label>
         <input type="date" id="fDue" value="${t?.due_date || ""}">
       </div>
-    </div>`;
+    </div>
+    ${coursePickerHtml(t?.course_id)}`;
 }
 
 function openForm(t, rerender, { startListening = false } = {}) {
@@ -53,7 +66,8 @@ function openForm(t, rerender, { startListening = false } = {}) {
       const row = {
         title,
         priority: parseInt(overlay.querySelector("#fPrio").value),
-        due_date: overlay.querySelector("#fDue").value || null
+        due_date: overlay.querySelector("#fDue").value || null,
+        course_id: overlay.querySelector("#fCourse")?.value || null
       };
       if (t) await todos.update(t.id, row);
       else await todos.insert(row);
@@ -90,7 +104,7 @@ function itemHtml(t) {
 }
 
 export async function render(view) {
-  items = await todos.list();
+  [items, courseList] = await Promise.all([todos.list(), courses.list().catch(() => [])]);
   const pending = items.filter(t => !t.done)
     .sort((a, b) => a.priority - b.priority || (a.due_date || "9999").localeCompare(b.due_date || "9999"));
   const done = items.filter(t => t.done);

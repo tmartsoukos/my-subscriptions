@@ -69,9 +69,10 @@ Deno.serve(async (req: Request) => {
   const { data: tok } = await admin.from("ics_tokens").select("user_id").eq("token", token).maybeSingle();
   if (!tok) return new Response("Unauthorized", { status: 401 });
 
-  const [{ data: subs }, { data: events }] = await Promise.all([
+  const [{ data: subs }, { data: events }, { data: healthItems }] = await Promise.all([
     admin.from("subscriptions").select("*").eq("user_id", tok.user_id),
-    admin.from("events").select("*").eq("user_id", tok.user_id)
+    admin.from("events").select("*").eq("user_id", tok.user_id),
+    admin.from("health_items").select("*").eq("user_id", tok.user_id)
   ]);
 
   const now = new Date();
@@ -168,6 +169,42 @@ Deno.serve(async (req: Request) => {
     }
     lines.push(fold(`SUMMARY:${esc(e.title)}`));
     if (e.notes) lines.push(fold(`DESCRIPTION:${esc(e.notes)}`));
+    lines.push("END:VEVENT");
+  }
+
+  // Υγεία: ραντεβού, εξετάσεις και επαναλαμβανόμενοι έλεγχοι
+  const KIND_LABEL: Record<string, string> = {
+    appointment: "Ραντεβού", exam: "Εξέταση", vaccine: "Εμβόλιο",
+    medication: "Φάρμακο", measurement: "Μέτρηση"
+  };
+  for (const h of healthItems ?? []) {
+    if (!h.item_date) continue;
+    let d = new Date(h.item_date + "T00:00:00");
+    if (h.repeat_months) {
+      while (d < today) d.setMonth(d.getMonth() + h.repeat_months);
+    }
+    if (d < weekAgo || d > horizon) continue;
+
+    const label = `${KIND_LABEL[h.kind] || "Υγεία"}: ${h.title}`;
+    lines.push("BEGIN:VEVENT",
+      `UID:health-${h.id}-${dateStr(d)}@my-dashboard`,
+      `DTSTAMP:${stamp}`);
+    if (h.item_time) {
+      const t = h.item_time.slice(0, 5).replace(":", "") + "00";
+      const [hh, mm] = h.item_time.split(":").map(Number);
+      const endD = new Date(d); endD.setHours(hh + 1, mm);
+      const endT = String(endD.getHours()).padStart(2, "0") + String(endD.getMinutes()).padStart(2, "0") + "00";
+      lines.push(
+        `DTSTART;TZID=Europe/Athens:${dateStr(d)}T${t}`,
+        `DTEND;TZID=Europe/Athens:${dateStr(endD)}T${endT}`
+      );
+    } else {
+      const dEnd = new Date(d); dEnd.setDate(dEnd.getDate() + 1);
+      lines.push(`DTSTART;VALUE=DATE:${dateStr(d)}`, `DTEND;VALUE=DATE:${dateStr(dEnd)}`);
+    }
+    lines.push(fold(`SUMMARY:${esc(label)}`));
+    const desc = [h.provider, h.result, h.note].filter(Boolean).join(" — ");
+    if (desc) lines.push(fold(`DESCRIPTION:${esc(desc)}`));
     lines.push("END:VEVENT");
   }
 

@@ -2,9 +2,11 @@ import { icons } from "../ui.js";
 
 // Σελίδα «Περισσότερα» για το κινητό — στο desktop όλα φαίνονται στο πλαϊνό μενού
 const LINKS = [
-  { href: "#/notes", ico: "note", title: "Σημειώσεις", desc: "Γρήγορες σημειώσεις" },
+  { href: "#/notes", ico: "note", title: "Σημειώσεις", desc: "Κείμενο, εικόνες, λίστες" },
+  { href: "#/studies", ico: "book", title: "Σπουδές", desc: "Μαθήματα, βαθμοί, προθεσμίες" },
+  { href: "#/health", ico: "heart", title: "Υγεία", desc: "Ραντεβού, εξετάσεις, φάρμακα" },
   { href: "#/watchlist", ico: "bookmark", title: "Λίστα", desc: "Ταινίες, σειρές, βιβλία" },
-  { href: "#/settings", ico: "settings", title: "Ρυθμίσεις", desc: "Ημερολόγιο Apple, λογαριασμός" }
+  { href: "#/settings", ico: "settings", title: "Ρυθμίσεις", desc: "Ημερολόγιο, widget, Siri" }
 ];
 
 export async function render(view) {

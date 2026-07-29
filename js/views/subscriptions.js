@@ -263,7 +263,8 @@ export async function render(view) {
   const rerender = () => render(view);
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
-  view.addEventListener("click", async e => {
+  // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders
+  view.onclick = async e => {
     const paidBtn = e.target.closest("[data-paid]");
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");
@@ -287,5 +288,5 @@ export async function render(view) {
         await rerender();
       });
     }
-  });
+  };
 }

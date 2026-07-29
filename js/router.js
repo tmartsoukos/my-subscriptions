@@ -13,8 +13,12 @@ export function current() {
 export async function render() {
   const name = routes[current()] ? current() : defaultRoute;
   const view = document.getElementById("view");
+  // Στο κινητό οι σελίδες Σημειώσεις/Λίστα/Ρυθμίσεις ζουν κάτω από το tab «Περισσότερα»
+  const UNDER_MORE = ["notes", "watchlist", "settings", "more"];
   document.querySelectorAll("[data-route]").forEach(a => {
-    a.classList.toggle("active", a.dataset.route === name);
+    const active = a.dataset.route === name ||
+      (a.dataset.route === "more" && UNDER_MORE.includes(name));
+    a.classList.toggle("active", active);
   });
   view.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
   try {

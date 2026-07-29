@@ -92,6 +92,7 @@ export const subscriptions = store("subscriptions", "next_date");
 export const todos = store("todos", "created_at", false);
 export const events = store("events", "event_date");
 export const notes = store("notes", "created_at", false);
+export const watchlist = store("watchlist", "created_at", false);
 
 // ---- ICS token: δημιουργείται μία φορά ανά χρήστη ----
 export async function getOrCreateIcsToken() {

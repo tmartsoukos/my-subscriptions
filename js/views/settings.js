@@ -22,6 +22,17 @@ export async function render(view) {
     </div>
 
     <div class="settings-block">
+      <h3>${icons.dots} Widget iPhone (Scriptable)</h3>
+      <p>Κατέβασε το <strong>Scriptable</strong> από το App Store, φτιάξε νέο script με το περιεχόμενο του
+      <code>scriptable/dashboard-widget.js</code> από το repo, και βάλε το token παρακάτω στη γραμμή TOKEN.
+      Μετά πρόσθεσε widget Scriptable στην αρχική ή στην οθόνη κλειδώματος.</p>
+      <div class="url-box">
+        <input type="text" id="widgetToken" readonly value="Φόρτωση..." aria-label="Token για το widget">
+        <button class="btn btn-ghost" id="btnCopyToken">${icons.copy} Αντιγραφή</button>
+      </div>
+    </div>
+
+    <div class="settings-block">
       <h3>${icons.card} Εισαγωγή παλιών δεδομένων</h3>
       <p>Αν υπάρχουν συνδρομές αποθηκευμένες τοπικά σε αυτόν τον browser (από την παλιά έκδοση), μπορείς να τις εισάγεις στον λογαριασμό σου.</p>
       <button class="btn btn-ghost" id="btnMigrate">Εισαγωγή από τοπική αποθήκευση</button>
@@ -34,12 +45,20 @@ export async function render(view) {
   `;
 
   const urlInput = view.querySelector("#icsUrl");
+  const tokenInput = view.querySelector("#widgetToken");
   try {
     const token = await getOrCreateIcsToken();
     urlInput.value = `webcal://${new URL(FUNCTIONS_URL).host}/functions/v1/ics-feed?token=${token}`;
+    tokenInput.value = token;
   } catch (e) {
     urlInput.value = "Σφάλμα φόρτωσης token";
+    tokenInput.value = "—";
   }
+
+  view.querySelector("#btnCopyToken").addEventListener("click", async () => {
+    await navigator.clipboard.writeText(tokenInput.value);
+    toast("Το token αντιγράφηκε");
+  });
 
   view.querySelector("#btnCopy").addEventListener("click", async () => {
     await navigator.clipboard.writeText(urlInput.value);
@@ -47,9 +66,10 @@ export async function render(view) {
   });
 
   view.querySelector("#btnRegen").addEventListener("click", () => {
-    confirmModal("Το παλιό URL θα σταματήσει να λειτουργεί και θα χρειαστεί νέα εγγραφή στο Apple Calendar. Συνέχεια;", async () => {
+    confirmModal("Το παλιό URL θα σταματήσει να λειτουργεί και θα χρειαστεί νέα εγγραφή στο Apple Calendar και νέο token στο widget. Συνέχεια;", async () => {
       const token = await regenerateIcsToken();
       urlInput.value = `webcal://${new URL(FUNCTIONS_URL).host}/functions/v1/ics-feed?token=${token}`;
+      tokenInput.value = token;
       toast("Δημιουργήθηκε νέο URL");
     });
   });

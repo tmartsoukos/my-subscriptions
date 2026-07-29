@@ -1,8 +1,9 @@
 import { todos } from "../db.js";
 import {
   escapeHtml, isoLocal, daysUntil, fmtDateShort, icons, toast, toastAction,
-  openModal, confirmModal, bindSwipe
+  openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons
 } from "../ui.js";
+import { parseGreekTask, speechSupported } from "../voice.js";
 
 const PRIO_LABEL = { 1: "Υψηλή", 2: "Μεσαία", 3: "Χαμηλή" };
 let items = [];
@@ -11,7 +12,11 @@ function formHtml(t) {
   return `
     <div class="field">
       <label for="fTitle">Τίτλος</label>
-      <input type="text" id="fTitle" placeholder="π.χ. Πληρωμή ενοικίου" value="${t ? escapeHtml(t.title) : ""}">
+      <div class="input-with-mic">
+        <input type="text" id="fTitle" placeholder="π.χ. Πληρωμή ενοικίου" value="${t ? escapeHtml(t.title) : ""}">
+        ${micButtonHtml("fTitle")}
+      </div>
+      <p class="hint mic-hint">Πες κάτι σαν «πληρωμή ΔΕΗ την Παρασκευή» — η ημερομηνία μπαίνει μόνη της.</p>
     </div>
     <div class="row2">
       <div class="field">
@@ -28,10 +33,20 @@ function formHtml(t) {
     </div>`;
 }
 
-function openForm(t, rerender) {
+function openForm(t, rerender, { startListening = false } = {}) {
   openModal({
     title: t ? "Επεξεργασία εργασίας" : "Νέα εργασία",
     body: formHtml(t),
+    onOpen: async overlay => {
+      // Η υπαγόρευση συμπληρώνει τίτλο, ημερομηνία και προτεραιότητα από τη φράση
+      await bindMicButtons(overlay, txt => {
+        const parsed = parseGreekTask(txt);
+        if (parsed.title) overlay.querySelector("#fTitle").value = parsed.title;
+        if (parsed.due_date) overlay.querySelector("#fDue").value = parsed.due_date;
+        if (parsed.priority) overlay.querySelector("#fPrio").value = String(parsed.priority);
+      });
+      if (startListening) overlay.querySelector("[data-mic]")?.click();
+    },
     onSave: async overlay => {
       const title = overlay.querySelector("#fTitle").value.trim();
       if (!title) { toast("Συμπλήρωσε τίτλο.", "error"); return false; }
@@ -83,7 +98,10 @@ export async function render(view) {
   view.innerHTML = `
     <div class="page-head">
       <h1>Εργασίες</h1>
-      <button class="btn btn-primary" id="btnAdd">${icons.plus} Νέα εργασία</button>
+      <div class="head-actions">
+        ${speechSupported() ? `<button class="btn btn-ghost" id="btnVoice">${icons.mic} Με φωνή</button>` : ""}
+        <button class="btn btn-primary" id="btnAdd">${icons.plus} Νέα εργασία</button>
+      </div>
     </div>
     <div class="stats">
       <div class="stat"><div class="label">Εκκρεμείς</div><div class="value">${pending.length}</div></div>
@@ -117,6 +135,7 @@ export async function render(view) {
 
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
+  view.querySelector("#btnVoice")?.addEventListener("click", () => openForm(null, rerender, { startListening: true }));
 
   // Χειρονομίες σε κάθε κάρτα
   view.querySelectorAll("[data-swipe]").forEach(card => {
@@ -127,7 +146,8 @@ export async function render(view) {
     });
   });
 
-  view.addEventListener("click", async e => {
+  // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders
+  view.onclick = async e => {
     const toggleBtn = e.target.closest("[data-toggle]");
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");
@@ -137,5 +157,5 @@ export async function render(view) {
       const t = items.find(x => x.id === delBtn.dataset.del);
       confirmModal(`Διαγραφή της εργασίας «${t.title}»;`, () => removeTodo(t));
     }
-  });
+  };
 }

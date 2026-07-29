@@ -95,6 +95,10 @@ export const icons = {
   chevronR: svg('<polyline points="9 18 15 12 9 6"/>'),
   bell: svg('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
   wallet: svg('<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'),
+  mic: svg('<path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/>'),
+  bookmark: svg('<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
+  star: svg('<path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3 1.1-6.5L2.6 9.3l6.5-.9z"/>'),
+  dots: svg('<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>'),
   external: svg('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'),
   card2: svg('<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>'),
   user: svg('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
@@ -134,6 +138,36 @@ export function toastAction(msg, actionLabel, onAction, ms = 6000) {
     clearTimeout(timer);
     close();
     await onAction();
+  });
+}
+
+// ---- Κουμπί μικροφώνου για υπαγόρευση σε πεδίο ----
+// Χρήση: micButtonHtml("fTitle") μέσα στη φόρμα + bindMicButtons(overlay, onFinal?)
+export function micButtonHtml(targetId) {
+  return `<button type="button" class="mic-btn" data-mic="${targetId}" aria-label="Υπαγόρευση">${icons.mic}</button>`;
+}
+
+export async function bindMicButtons(root, onFinal) {
+  const { speechSupported, startDictation } = await import("./voice.js");
+  root.querySelectorAll("[data-mic]").forEach(btn => {
+    if (!speechSupported()) { btn.remove(); return; }
+    let stop = null;
+    btn.addEventListener("click", () => {
+      const input = root.querySelector("#" + btn.dataset.mic);
+      if (stop) { stop(); return; }
+      btn.classList.add("listening");
+      input.placeholder = "Ακούω...";
+      stop = startDictation({
+        onInterim: txt => { input.value = txt; },
+        onFinal: txt => {
+          input.value = txt;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          onFinal?.(txt, input);
+        },
+        onError: msg => toast(msg, "error"),
+        onEnd: () => { btn.classList.remove("listening"); input.placeholder = ""; stop = null; }
+      });
+    });
   });
 }
 

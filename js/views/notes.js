@@ -1,5 +1,5 @@
 import { notes } from "../db.js";
-import { escapeHtml, icons, toast, openModal, confirmModal } from "../ui.js";
+import { escapeHtml, icons, toast, openModal, confirmModal, micButtonHtml, bindMicButtons } from "../ui.js";
 
 const NOTE_COLORS = ["#f5d76e", "#f5b06e", "#8ed99a", "#8ec9f5", "#d99ee8", "#f0f0f0"];
 let items = [];
@@ -9,7 +9,10 @@ function formHtml(n) {
   return `
     <div class="field">
       <label for="fContent">Σημείωση</label>
-      <textarea id="fContent" placeholder="Γράψε κάτι...">${n ? escapeHtml(n.content) : ""}</textarea>
+      <div class="input-with-mic">
+        <textarea id="fContent" placeholder="Γράψε κάτι...">${n ? escapeHtml(n.content) : ""}</textarea>
+        ${micButtonHtml("fContent")}
+      </div>
     </div>
     <div class="field">
       <label>Χρώμα</label>
@@ -24,6 +27,7 @@ function openForm(n, rerender) {
     title: n ? "Επεξεργασία σημείωσης" : "Νέα σημείωση",
     body: formHtml(n),
     onOpen: overlay => {
+      bindMicButtons(overlay);
       overlay.querySelector("[data-colorpicker]").addEventListener("click", e => {
         const btn = e.target.closest("[data-color]");
         if (!btn) return;
@@ -64,7 +68,8 @@ export async function render(view) {
   const rerender = () => render(view);
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
-  view.addEventListener("click", e => {
+  // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders
+  view.onclick = e => {
     const delBtn = e.target.closest("[data-del]");
     if (delBtn) {
       e.stopPropagation();
@@ -77,5 +82,5 @@ export async function render(view) {
     }
     const card = e.target.closest("[data-note]");
     if (card) openForm(items.find(n => n.id === card.dataset.note), rerender);
-  });
+  };
 }

@@ -183,6 +183,69 @@ main#view {
 .swipe-hint { margin-bottom: var(--space-2); }
 @media (hover: hover) and (pointer: fine) { .swipe-hint { display: none; } }
 
+/* Κουμπιά κεφαλίδας */
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Πεδίο με μικρόφωνο */
+.input-with-mic { position: relative; }
+.input-with-mic input, .input-with-mic textarea { padding-right: 52px; }
+.mic-btn {
+  position: absolute; right: 6px; top: 6px;
+  width: 38px; height: 38px; border-radius: 10px;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: color .2s, background .2s, border-color .2s;
+}
+.mic-btn svg { width: 18px; height: 18px; }
+.mic-btn:hover { color: var(--text); }
+.mic-btn.listening {
+  background: var(--danger); border-color: var(--danger); color: #fff;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(248, 81, 73, .18); } }
+.mic-hint { margin-top: 6px; }
+
+/* Φίλτρα */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-4); }
+.filter-chip {
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+  border-radius: 20px; padding: 8px 14px; min-height: 40px; font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: color .2s, border-color .2s, background .2s;
+}
+.filter-chip span { opacity: .65; font-variant-numeric: tabular-nums; }
+.filter-chip:hover { color: var(--text); border-color: var(--border-strong); }
+.filter-chip.active {
+  color: #fff; border-color: transparent;
+  background: linear-gradient(135deg, rgba(59,130,246,.35), rgba(124,108,246,.3));
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* Βαθμολογία με αστέρια */
+.stars { display: inline-flex; gap: 2px; align-items: center; }
+.stars .star {
+  background: none; border: none; padding: 3px; color: var(--border-strong);
+  display: inline-flex; min-height: 34px; min-width: 30px; align-items: center; justify-content: center;
+}
+.stars .star svg { width: 19px; height: 19px; fill: none; }
+.stars .star.on { color: var(--warn); }
+.stars .star.on svg { fill: var(--warn); }
+.stars.static { margin-top: 5px; }
+.stars.static .star { min-height: 0; min-width: 0; padding: 0 1px 0 0; }
+.stars.static .star svg { width: 13px; height: 13px; }
+
+.chip-planned { color: var(--muted); }
+.chip-active { color: var(--accent); border-color: rgba(59,130,246,.45); }
+.chip-done { color: var(--ok); border-color: rgba(63,185,80,.45); }
+.wl-kind { background: var(--surface2) !important; color: var(--muted); }
+
+/* Σελίδα «Περισσότερα» */
+.more-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.more-item { text-decoration: none; }
+.more-ico { background: var(--surface2) !important; color: var(--accent); }
+.more-arrow { color: var(--muted); display: flex; }
+.more-arrow svg { width: 18px; height: 18px; }
+
 /* Toast με ενέργεια */
 .toast-with-action { display: flex; align-items: center; gap: 14px; }
 .toast-btn {

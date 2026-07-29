@@ -6,6 +6,8 @@ import * as subs from "./views/subscriptions.js";
 import * as todosView from "./views/todos.js";
 import * as calendarView from "./views/calendar.js";
 import * as notesView from "./views/notes.js";
+import * as watchlistView from "./views/watchlist.js";
+import * as moreView from "./views/more.js";
 import * as settingsView from "./views/settings.js";
 
 router.register("dashboard", dashboard.render);
@@ -13,6 +15,8 @@ router.register("subs", subs.render);
 router.register("todos", todosView.render);
 router.register("calendar", calendarView.render);
 router.register("notes", notesView.render);
+router.register("watchlist", watchlistView.render);
+router.register("more", moreView.render);
 router.register("settings", settingsView.render);
 
 // Εικονίδια πλοήγησης

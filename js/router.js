@@ -1,6 +1,10 @@
 // Απλός hash router: #/dashboard, #/subs, ...
+import { skeletonFor } from "./skeleton.js";
+
 const routes = {};
 let defaultRoute = "dashboard";
+const ORDER = ["dashboard", "subs", "todos", "calendar", "notes", "studies", "health", "watchlist", "more", "settings"];
+let lastRoute = null;
 
 export function register(name, renderFn) {
   routes[name] = renderFn;
@@ -30,13 +34,25 @@ export async function render() {
       (a.dataset.route === "more" && UNDER_MORE.includes(name));
     a.classList.toggle("active", active);
   });
-  view.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+  // Κατεύθυνση μετάβασης ανάλογα με τη θέση της ενότητας στο μενού
+  const dir = lastRoute && ORDER.indexOf(name) < ORDER.indexOf(lastRoute) ? "back" : "fwd";
+  lastRoute = name;
+
+  // Σκελετός με το σχήμα του περιεχομένου αντί για σπίναρ στο κενό
+  view.innerHTML = skeletonFor(name);
+
   try {
+    // Κάθε view γράφει το δικό του innerHTML μόλις έρθουν τα δεδομένα —
+    // μέχρι τότε μένει ορατός ο σκελετός.
     await routes[name](view);
   } catch (e) {
     view.innerHTML = `<div class="empty"><p>Σφάλμα φόρτωσης: ${e.message || e}</p>
       <button class="btn btn-primary" onclick="location.reload()">Δοκίμασε ξανά</button></div>`;
   }
+
+  view.classList.remove("enter-fwd", "enter-back");
+  void view.offsetWidth; // επανεκκίνηση της κίνησης
+  view.classList.add(dir === "back" ? "enter-back" : "enter-fwd");
   view.focus({ preventScroll: true });
 }
 

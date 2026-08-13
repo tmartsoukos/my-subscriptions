@@ -9,6 +9,18 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="css/app.css">
 <title>Το Dashboard μου</title>
+<script>
+  // Εφαρμογή θέματος πριν την πρώτη ζωγραφιά, ώστε να μην αναβοσβήνει
+  (function () {
+    var mode = localStorage.getItem("pref:theme") || "system";
+    var eff = mode === "system"
+      ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+      : mode;
+    document.documentElement.dataset.theme = eff;
+    document.documentElement.dataset.density = localStorage.getItem("pref:density") || "comfortable";
+    document.documentElement.style.colorScheme = eff;
+  })();
+</script>
 </head>
 <body>
 

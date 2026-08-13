@@ -7,8 +7,22 @@ export const CATEGORY_COLORS = {
   fitness: "#31a35f", gaming: "#d963a0", music: "#1ba3ba", other: "#7b8fd6"
 };
 
+// Τα χρώματα κειμένου/φόντου διαβάζονται από το ενεργό θέμα
+function themeColors() {
+  const css = getComputedStyle(document.documentElement);
+  const get = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
+  return {
+    text: get("--text", "#e8eefc"),
+    muted: get("--muted", "#8b9bc0"),
+    surface: get("--surface", "#0d1630"),
+    grid: "rgba(128, 150, 200, .18)",
+    axis: "rgba(128, 150, 200, .35)"
+  };
+}
+
 // Ράβδοι: προβλεπόμενες χρεώσεις ανά μήνα (ένα μέγεθος, ένα χρώμα)
 export function barChart(points) {
+  const C = themeColors();
   const W = 560, H = 220, padL = 44, padB = 26, padT = 16, padR = 8;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const max = Math.max(...points.map(p => p.value), 1);
@@ -19,8 +33,8 @@ export function barChart(points) {
   // Γραμμές πλέγματος (διακριτικές)
   const ticks = [0, 0.5, 1].map(f => {
     const y = padT + plotH * (1 - f);
-    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(148,178,255,.1)" stroke-width="1"/>
-      <text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="#8b9bc0">${Math.round(max * f)}€</text>`;
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="${C.grid}" stroke-width="1"/>
+      <text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="${C.muted}">${Math.round(max * f)}€</text>`;
   }).join("");
 
   const bars = points.map((p, i) => {
@@ -31,19 +45,20 @@ export function barChart(points) {
       <title>${escapeHtml(p.label)}: ${fmt(p.value)}</title>
       <rect x="${x - 4}" y="${padT}" width="${barW + 8}" height="${plotH}" fill="transparent"/>
       <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#4c8dff"/>
-      ${i === maxIdx && p.value > 0 ? `<text x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" font-size="10.5" font-weight="600" fill="#e8eefc">${Math.round(p.value)}€</text>` : ""}
-      <text x="${x + barW / 2}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#8b9bc0">${escapeHtml(p.label)}</text>
+      ${i === maxIdx && p.value > 0 ? `<text x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${C.text}">${Math.round(p.value)}€</text>` : ""}
+      <text x="${x + barW / 2}" y="${H - 8}" text-anchor="middle" font-size="10" fill="${C.muted}">${escapeHtml(p.label)}</text>
     </g>`;
   }).join("");
 
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Προβλεπόμενες χρεώσεις ανά μήνα">
     ${ticks}${bars}
-    <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(148,178,255,.25)" stroke-width="1"/>
+    <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="${C.axis}" stroke-width="1"/>
   </svg>`;
 }
 
 // Donut: κατανομή μηνιαίου κόστους ανά κατηγορία (κενό 2px μεταξύ τμημάτων)
 export function donutChart(items, centerLabel) {
+  const C = themeColors();
   const size = 190, cx = size / 2, cy = size / 2, r = 70, rIn = 46;
   const total = items.reduce((s, x) => s + x.value, 0);
   if (total <= 0) return "";
@@ -55,7 +70,7 @@ export function donutChart(items, centerLabel) {
     const large = a1 - a0 > Math.PI ? 1 : 0;
     const p = (a, rr) => `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
     return `<path d="M ${p(a0, r)} A ${r} ${r} 0 ${large} 1 ${p(a1, r)} L ${p(a1, rIn)} A ${rIn} ${rIn} 0 ${large} 0 ${p(a0, rIn)} Z"
-      fill="${x.color}" stroke="#0d1630" stroke-width="2">
+      fill="${x.color}" stroke="${C.surface}" stroke-width="2">
       <title>${escapeHtml(x.label)}: ${fmt(x.value)} (${Math.round(frac * 100)}%)</title>
     </path>`;
   }).join("");
@@ -66,8 +81,8 @@ export function donutChart(items, centerLabel) {
   return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <svg viewBox="0 0 ${size} ${size}" style="max-width:190px" role="img" aria-label="Κατανομή κόστους ανά κατηγορία">
       ${segs}
-      <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="17" font-weight="700" fill="#e8eefc">${escapeHtml(centerLabel)}</text>
-      <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="#8b9bc0">/ μήνα</text>
+      <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="17" font-weight="700" fill="${C.text}">${escapeHtml(centerLabel)}</text>
+      <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="${C.muted}">/ μήνα</text>
     </svg>
     <div class="legend" style="flex-direction:column;align-items:flex-start;gap:7px">${legend}</div>
   </div>`;

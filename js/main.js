@@ -1,3 +1,4 @@
+import "./theme.js";
 import { getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData } from "./db.js";
 import { icons, toast } from "./ui.js";
 import * as router from "./router.js";

@@ -22,10 +22,52 @@
   --sidebar-w: 232px;
 }
 
+/* ---- Φωτεινό θέμα ---- */
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+  --bg-raised: #ffffff;
+  --surface: #ffffff;
+  --surface2: #eef1f8;
+  --border: rgba(15, 32, 66, 0.12);
+  --border-strong: rgba(15, 32, 66, 0.26);
+  --text: #101828;
+  --muted: #5a6785;
+  --accent: #2563eb;
+  --accent2: #6d5cf0;
+  --accent-grad: linear-gradient(135deg, #2563eb, #6d5cf0);
+  --glow: 0 2px 12px rgba(37, 99, 235, 0.18);
+  --danger: #d92d20;
+  --warn: #b25e09;
+  --ok: #067647;
+}
+:root[data-theme="light"] body {
+  background-image: radial-gradient(900px 460px at 85% -10%, rgba(37,99,235,.10), transparent),
+                    radial-gradient(700px 380px at -10% 25%, rgba(109,92,240,.08), transparent);
+}
+:root[data-theme="light"] .note-card { border-color: rgba(0,0,0,.12); }
+:root[data-theme="light"] .tabbar { background: rgba(255,255,255,.92); }
+:root[data-theme="light"] .overlay { background: rgba(16, 24, 40, .45); }
+:root[data-theme="light"] .modal { box-shadow: 0 20px 60px rgba(16,24,40,.18); }
+:root[data-theme="light"] .card:hover { box-shadow: 0 4px 16px rgba(16,24,40,.10); }
+:root[data-theme="light"] .wl-kind, :root[data-theme="light"] .more-ico { background: var(--surface2) !important; }
+
+/* ---- Συμπαγής πυκνότητα ---- */
+:root[data-density="compact"] {
+  --space-3: 9px; --space-4: 12px; --space-5: 15px; --space-6: 18px; --space-8: 22px;
+}
+:root[data-density="compact"] .card { padding: 10px 14px; }
+:root[data-density="compact"] .logo { width: 36px; height: 36px; border-radius: 10px; }
+:root[data-density="compact"] .logo svg { width: 20px; height: 20px; }
+:root[data-density="compact"] .stat { padding: 12px 14px; }
+:root[data-density="compact"] .stat .value { font-size: 19px; }
+:root[data-density="compact"] .card-main .name { font-size: 14.5px; }
+:root[data-density="compact"] .list { gap: 8px; }
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { color-scheme: dark; }
 body {
-  background: var(--bg);
+  /* longhands (όχι shorthand με var) ώστε η αλλαγή θέματος να εφαρμόζεται αξιόπιστα */
+  background-color: var(--bg);
   background-image: radial-gradient(1000px 500px at 80% -10%, rgba(59,130,246,.10), transparent),
                     radial-gradient(800px 400px at -10% 30%, rgba(124,108,246,.08), transparent);
   color: var(--text);
@@ -319,6 +361,22 @@ main#view {
 .more-arrow { color: var(--muted); display: flex; }
 .more-arrow svg { width: 18px; height: 18px; }
 
+/* Ρυθμίσεις: επιλογείς και προτιμήσεις */
+.seg { display: inline-flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg-btn {
+  background: none; border: none; color: var(--muted); font-size: 13.5px; font-weight: 600;
+  padding: 8px 16px; min-height: 38px; border-radius: 9px; transition: background .2s, color .2s;
+}
+.seg-btn:hover { color: var(--text); }
+.seg-btn.active { background: var(--accent-grad); color: #fff; }
+.prefs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3); margin-top: var(--space-4); }
+.pref { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.pref select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 15px; padding: 10px 12px; min-height: 44px; font-family: inherit;
+}
+.prefs-grid .btn { align-self: end; }
+
 /* Toast με ενέργεια */
 .toast-with-action { display: flex; align-items: center; gap: 14px; }
 .toast-btn {
@@ -388,6 +446,33 @@ main#view {
 }
 .empty svg { width: 42px; height: 42px; margin-bottom: 12px; opacity: .5; }
 .empty .btn { margin-top: var(--space-4); }
+
+/* ---- Σκελετοί φόρτωσης ---- */
+.skeleton { pointer-events: none; }
+.sk {
+  display: block; border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 37%, var(--surface2) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+.sk-card { pointer-events: none; }
+.sk-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: var(--space-6); }
+.sk-logo { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; }
+.sk-block { width: 100%; border-radius: var(--radius-sm); margin-top: 12px; }
+.sk-note { min-height: 150px; border-radius: var(--radius); padding: var(--space-4); border: 1px solid var(--border); background: var(--surface); }
+.sk-cell { min-height: 74px; border-radius: var(--radius-sm); }
+.skeleton .card, .skeleton .stat, .skeleton .chart-card, .skeleton .settings-block { border-color: var(--border); }
+
+/* ---- Μεταβάσεις μεταξύ οθονών ---- */
+@keyframes viewInFwd { from { opacity: 0; transform: translateX(10px); } }
+@keyframes viewInBack { from { opacity: 0; transform: translateX(-10px); } }
+main#view.enter-fwd { animation: viewInFwd .22s ease-out; }
+main#view.enter-back { animation: viewInBack .22s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  main#view.enter-fwd, main#view.enter-back { animation: none; }
+  .sk { animation: none; }
+}
 
 .loading { display: flex; justify-content: center; padding: 80px 0; }
 .spinner {

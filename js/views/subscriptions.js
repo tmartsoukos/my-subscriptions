@@ -210,7 +210,7 @@ function cardHtml(s) {
   ].filter(Boolean).join("");
 
   return `<div class="card ${cardClass}">
-    <div class="logo" style="background:${s.color}">${logoFor(s)}</div>
+    <div class="logo" style="--logo:${s.color};background:${s.color}">${logoFor(s)}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(s.name)}
         ${trial ? `<span class="badge badge-trial">ΔΟΚΙΜΗ</span>` : ""}

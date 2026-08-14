@@ -113,7 +113,7 @@ function openDay(dateIso, payments, rerender) {
     ${pays.length ? `<div class="section-title" style="margin-top:0">Πληρωμές</div>
       <div class="list">${pays.map(s => `
         <div class="card" style="padding:10px 14px">
-          <div class="logo logo-sm" style="background:${s.color}">${logoFor(s)}</div>
+          <div class="logo logo-sm" style="--logo:${s.color};background:${s.color}">${logoFor(s)}</div>
           <div class="card-main"><div class="name">${escapeHtml(s.name)}</div></div>
           <div class="price">${fmt(s.price)}</div>
         </div>`).join("")}</div>` : ""}

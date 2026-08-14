@@ -105,7 +105,7 @@ function courseHtml(c) {
     .filter(e => e.course_id === c.id && e.event_date >= isoLocal(today()))
     .sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
   return `<div class="card">
-    <div class="logo" style="background:${c.color}">${icons.book}</div>
+    <div class="logo" style="--logo:${c.color};background:${c.color}">${icons.book}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(c.name)}
         ${c.code ? `<span class="chip">${escapeHtml(c.code)}</span>` : ""}

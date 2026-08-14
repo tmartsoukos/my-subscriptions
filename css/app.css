@@ -17,6 +17,13 @@
   --ok: #3fb950;
   --radius: 14px;
   --radius-sm: 10px;
+  /* Τυπογραφική κλίμακα */
+  --fs-xs: 11.5px;
+  --fs-sm: 13px;
+  --fs-base: 15px;
+  --fs-md: 17px;
+  --fs-lg: 22px;
+  --fs-xl: 28px;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
   --space-5: 20px; --space-6: 24px; --space-8: 32px;
   --sidebar-w: 232px;
@@ -71,9 +78,20 @@ body {
   background-image: radial-gradient(1000px 500px at 80% -10%, rgba(59,130,246,.10), transparent),
                     radial-gradient(800px 400px at -10% 30%, rgba(124,108,246,.08), transparent);
   color: var(--text);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
+  font-size: var(--fs-base);
+  line-height: 1.5;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Αριθμοί σταθερού πλάτους: οι στήλες δεν «χοροπηδάνε» όταν αλλάζουν ψηφία */
+.stat .value, .price, .cycle, .due, .todo-due, .chip, .member-chip, .acct,
+.cal-daynum, .filter-chip span, .note-foot span, .toast, .seg-btn,
+.card-right, .stat .label, .url-box input, .prefs-grid select, .tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 .hidden { display: none !important; }
 button { font-family: inherit; cursor: pointer; }
@@ -153,8 +171,8 @@ main#view {
 
 /* ============ Τίτλοι & sections ============ */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); flex-wrap: wrap; }
-.page-head h1 { font-size: 24px; letter-spacing: -.4px; }
-.section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin: var(--space-6) 0 var(--space-3); }
+.page-head h1 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; }
+.section-title { font-size: var(--fs-sm); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: var(--space-6) 0 var(--space-3); font-weight: 600; }
 
 /* ============ Stat cards ============ */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
@@ -168,9 +186,9 @@ main#view {
   content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
   background: var(--accent-grad); opacity: .7;
 }
-.stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
-.stat .value { font-size: 23px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.stat .value small { font-size: 13px; color: var(--muted); font-weight: 500; }
+.stat .label { color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; font-weight: 600; }
+.stat .value { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
+.stat .value small { font-size: var(--fs-sm); color: var(--muted); font-weight: 500; letter-spacing: 0; }
 
 /* ============ Κάρτες λίστας ============ */
 .list { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -186,9 +204,22 @@ main#view {
 .logo {
   width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 19px; font-weight: 700; color: #fff;
+  font-size: var(--fs-md); font-weight: 700; color: #fff;
+  position: relative; overflow: hidden;
+  box-shadow: 0 5px 16px -6px var(--logo, rgba(0,0,0,.6)),
+              inset 0 1px 0 rgba(255,255,255,.28);
 }
-.logo svg { width: 24px; height: 24px; }
+/* Διαβάθμιση και εσωτερικός φωτισμός: βάθος χωρίς επιπλέον εικόνες */
+.logo::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(155deg, rgba(255,255,255,.30), rgba(255,255,255,.04) 52%, rgba(0,0,0,.22));
+}
+.logo svg { width: 24px; height: 24px; position: relative; z-index: 1;
+  filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.28)); }
+:root[data-theme="light"] .logo::after {
+  background: linear-gradient(155deg, rgba(255,255,255,.38), rgba(255,255,255,.06) 55%, rgba(0,0,0,.14));
+}
+:root[data-theme="light"] .logo { box-shadow: 0 4px 12px -5px var(--logo, rgba(0,0,0,.35)), inset 0 1px 0 rgba(255,255,255,.4); }
 .logo-sm { width: 34px; height: 34px; border-radius: 10px; font-size: 15px; }
 .logo-sm svg { width: 19px; height: 19px; }
 
@@ -385,8 +416,8 @@ main#view {
 }
 .toast-btn:hover { text-decoration: underline; }
 .card-main { flex: 1; min-width: 0; }
-.card-main .name { font-weight: 600; font-size: 15.5px; margin-bottom: 3px; }
-.card-main .meta { color: var(--muted); font-size: 13px; }
+.card-main .name { font-weight: 600; font-size: var(--fs-base); margin-bottom: 3px; letter-spacing: -0.005em; }
+.card-main .meta { color: var(--muted); font-size: var(--fs-sm); }
 .chip {
   display: inline-block; font-size: 11.5px; padding: 2px 9px; border-radius: 20px;
   background: var(--surface2); border: 1px solid var(--border); color: var(--muted); margin-left: 6px;
@@ -432,9 +463,9 @@ main#view {
 .alert-trial ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
 
 .card-right { text-align: right; flex-shrink: 0; }
-.card-right .price { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
-.card-right .cycle { color: var(--muted); font-size: 12px; }
-.card-right .due { font-size: 13px; margin-top: 3px; }
+.card-right .price { font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.01em; }
+.card-right .cycle { color: var(--muted); font-size: var(--fs-xs); }
+.card-right .due { font-size: var(--fs-sm); margin-top: 3px; }
 .due.ok { color: var(--muted); }
 .due.soon { color: var(--warn); font-weight: 600; }
 .due.today { color: var(--danger); font-weight: 700; }
@@ -472,6 +503,7 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   main#view.enter-fwd, main#view.enter-back { animation: none; }
   .sk { animation: none; }
+  .modal { animation: none; }
 }
 
 .loading { display: flex; justify-content: center; padding: 80px 0; }
@@ -559,8 +591,9 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
   animation: pop .18s ease-out;
 }
 @keyframes pop { from { transform: scale(.96); opacity: 0; } }
+.sheet-handle { display: none; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-5) var(--space-6) 0; }
-.modal-head h2 { font-size: 18px; }
+.modal-head h2 { font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.01em; }
 .modal-body { padding: var(--space-4) var(--space-6); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 0 var(--space-6) var(--space-5); }
 .confirm-text { font-size: 15px; line-height: 1.5; }
@@ -624,6 +657,25 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
 
 /* ============ Responsive (mobile) ============ */
 @media (max-width: 899px) {
+  /* Τα παράθυρα γίνονται φύλλα που ανεβαίνουν από κάτω, όπως στο iOS */
+  .overlay { align-items: flex-end; padding: 0; }
+  .modal {
+    max-width: 100%; width: 100%;
+    border-radius: 22px 22px 0 0;
+    border-left: none; border-right: none; border-bottom: none;
+    max-height: 92dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheetUp .26s cubic-bezier(.32, .72, 0, 1);
+    will-change: transform;
+  }
+  @keyframes sheetUp { from { transform: translateY(100%); } }
+  .sheet-handle {
+    display: block; width: 40px; height: 5px; border-radius: 3px;
+    background: var(--border-strong); margin: 10px auto 2px;
+    cursor: grab; touch-action: none;
+  }
+  .modal-head { padding-top: var(--space-3); touch-action: none; }
+  .modal-actions { padding-bottom: var(--space-6); }
   .sidebar { display: none; }
   .mobile-header {
     display: flex; align-items: center; justify-content: space-between;

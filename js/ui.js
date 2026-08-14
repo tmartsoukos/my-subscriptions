@@ -228,12 +228,61 @@ export function bindSwipe(el, { onLeft, onRight }) {
   el.addEventListener("touchcancel", finish);
 }
 
+// Σε κινητό το modal είναι φύλλο που ανεβαίνει από κάτω: σύρσιμο προς τα κάτω το κλείνει.
+// Η χειρονομία πιάνει μόνο από τη λαβή και την κεφαλίδα, ώστε να μη χαλάει η κύλιση του περιεχομένου.
+function bindSheetDrag(overlay, close) {
+  if (!window.matchMedia("(max-width: 899px)").matches) return;
+  const modal = overlay.querySelector(".modal");
+  const grip = overlay.querySelector(".sheet-handle");
+  const head = overlay.querySelector(".modal-head");
+  const CLOSE_AT = 110;
+  let startY = 0, dy = 0, dragging = false, startedAt = 0;
+
+  const onStart = e => {
+    if (e.touches.length !== 1) return;
+    startY = e.touches[0].clientY;
+    dy = 0; dragging = true; startedAt = Date.now();
+    modal.style.transition = "none";
+  };
+  const onMove = e => {
+    if (!dragging) return;
+    dy = e.touches[0].clientY - startY;
+    if (dy < 0) dy = dy / 4;                       // αντίσταση προς τα πάνω
+    modal.style.transform = `translateY(${dy}px)`;
+    overlay.style.background = `rgba(2, 6, 18, ${Math.max(0.72 - dy / 500, 0.25)})`;
+    if (e.cancelable) e.preventDefault();
+  };
+  const onEnd = () => {
+    if (!dragging) return;
+    dragging = false;
+    const fast = Date.now() - startedAt < 300 && dy > 50;
+    modal.style.transition = "transform .22s ease-out";
+    if (dy > CLOSE_AT || fast) {
+      modal.style.transform = "translateY(100%)";
+      overlay.style.background = "rgba(2, 6, 18, 0)";
+      setTimeout(close, 200);
+    } else {
+      modal.style.transform = "";
+      overlay.style.background = "";
+    }
+  };
+
+  for (const el of [grip, head]) {
+    if (!el) continue;
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+  }
+}
+
 // ---- Modal ----
 export function openModal({ title, body, saveLabel = "Αποθήκευση", onSave, onOpen, danger = false }) {
   const root = document.getElementById("modalRoot");
   root.innerHTML = `
     <div class="overlay open">
       <div class="modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+        <div class="sheet-handle" aria-hidden="true"></div>
         <div class="modal-head">
           <h2>${escapeHtml(title)}</h2>
           <button class="icon-btn" data-close aria-label="Κλείσιμο">${icons.x}</button>
@@ -265,6 +314,7 @@ export function openModal({ title, body, saveLabel = "Αποθήκευση", onS
       }
     });
   }
+  bindSheetDrag(overlay, close);
   if (onOpen) onOpen(overlay);
   const first = overlay.querySelector("input, select, textarea");
   if (first) first.focus();

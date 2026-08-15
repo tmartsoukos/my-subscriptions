@@ -1,4 +1,4 @@
-/* ============ Design tokens ============ */
+﻿/* ============ Design tokens ============ */
 :root {
   --bg: #070d1f;
   --bg-raised: #0b1329;
@@ -17,6 +17,19 @@
   --ok: #3fb950;
   --radius: 14px;
   --radius-sm: 10px;
+  /* Κλίμακα κίνησης: μία διάρκεια και μία καμπύλη ανά ρόλο, παντού */
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --ease-in: cubic-bezier(.55, .06, .68, .19);
+  --ease-spring: cubic-bezier(.32, .72, 0, 1);
+
+  /* Κλίμακα ανύψωσης: 3 επίπεδα, από επιφάνεια σε αιωρούμενο */
+  --elev-1: 0 1px 2px rgba(0, 0, 0, .28);
+  --elev-2: 0 8px 24px -10px rgba(0, 0, 0, .55);
+  --elev-3: 0 24px 60px -12px rgba(0, 0, 0, .65);
+
   /* Τυπογραφική κλίμακα */
   --fs-xs: 11.5px;
   --fs-sm: 13px;
@@ -46,6 +59,9 @@
   --danger: #d92d20;
   --warn: #b25e09;
   --ok: #067647;
+  --elev-1: 0 1px 2px rgba(16, 24, 40, .08);
+  --elev-2: 0 8px 24px -10px rgba(16, 24, 40, .22);
+  --elev-3: 0 24px 60px -14px rgba(16, 24, 40, .28);
 }
 :root[data-theme="light"] body {
   background-image: radial-gradient(900px 460px at 85% -10%, rgba(37,99,235,.10), transparent),
@@ -54,8 +70,8 @@
 :root[data-theme="light"] .note-card { border-color: rgba(0,0,0,.12); }
 :root[data-theme="light"] .tabbar { background: rgba(255,255,255,.92); }
 :root[data-theme="light"] .overlay { background: rgba(16, 24, 40, .45); }
-:root[data-theme="light"] .modal { box-shadow: 0 20px 60px rgba(16,24,40,.18); }
-:root[data-theme="light"] .card:hover { box-shadow: 0 4px 16px rgba(16,24,40,.10); }
+:root[data-theme="light"] .modal { box-shadow: var(--elev-3); }
+:root[data-theme="light"] .card:hover { box-shadow: var(--elev-2); }
 :root[data-theme="light"] .wl-kind, :root[data-theme="light"] .more-ico { background: var(--surface2) !important; }
 
 /* ---- Συμπαγής πυκνότητα ---- */
@@ -105,7 +121,7 @@ a { color: inherit; }
 .btn {
   border: none; border-radius: var(--radius-sm);
   font-size: 14px; font-weight: 600; padding: 10px 18px; min-height: 44px;
-  transition: filter .2s, transform .1s, box-shadow .2s;
+  transition: filter var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur) var(--ease-out);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 .btn:hover { filter: brightness(1.15); }
@@ -119,7 +135,7 @@ a { color: inherit; }
   background: none; border: none; color: var(--muted);
   min-width: 40px; min-height: 40px; border-radius: var(--radius-sm);
   display: inline-flex; align-items: center; justify-content: center;
-  transition: color .2s, background .2s;
+  transition: color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
 }
 .icon-btn:hover { color: var(--text); background: var(--surface2); }
 .icon-btn svg, .nav-ico svg { width: 20px; height: 20px; }
@@ -141,7 +157,7 @@ a { color: inherit; }
   display: flex; align-items: center; gap: 12px;
   padding: 11px var(--space-3); border-radius: var(--radius-sm);
   color: var(--muted); text-decoration: none; font-size: 14.5px; font-weight: 500;
-  transition: background .2s, color .2s;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
   background: none; border: none; width: 100%; text-align: left;
 }
 .side-nav a:hover, .side-bottom a:hover, .side-logout:hover { color: var(--text); background: var(--surface); }
@@ -196,9 +212,10 @@ main#view {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: var(--space-4) var(--space-5);
   display: flex; align-items: center; gap: var(--space-4);
-  transition: border-color .2s, box-shadow .2s;
+  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
-.card:hover { border-color: var(--border-strong); box-shadow: 0 0 18px rgba(59,130,246,.12); }
+.card { box-shadow: var(--elev-1); }
+.card:hover { border-color: var(--border-strong); box-shadow: var(--elev-2); }
 .card.due-soon { border-left: 3px solid var(--warn); }
 .card.due-today { border-left: 3px solid var(--danger); }
 .logo {
@@ -232,7 +249,7 @@ main#view {
   cursor: pointer; color: var(--muted); font-size: 13.5px; padding: 6px 0;
   list-style: none; display: flex; align-items: center; gap: 8px; min-height: 40px;
 }
-.form-section > summary::before { content: "▸"; transition: transform .2s; display: inline-block; }
+.form-section > summary::before { content: "▸"; transition: transform var(--dur) var(--ease-out); display: inline-block; }
 .form-section[open] > summary::before { transform: rotate(90deg); }
 .form-section > summary::-webkit-details-marker { display: none; }
 
@@ -244,7 +261,7 @@ main#view {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 18px; font-size: 13px; font-weight: 600; overflow: hidden;
 }
-.swipe-bg span { display: inline-flex; align-items: center; gap: 7px; opacity: 0; transition: opacity .15s; }
+.swipe-bg span { display: inline-flex; align-items: center; gap: 7px; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
 .swipe-bg svg { width: 17px; height: 17px; }
 .sw-delete { color: var(--danger); }
 .sw-done { color: var(--ok); }
@@ -262,9 +279,9 @@ main#view {
   min-height: 150px; display: flex; flex-direction: column;
   color: #131313; font-size: 13.5px; line-height: 1.5;
   border: 1px solid rgba(0,0,0,.15); text-decoration: none; position: relative;
-  transition: transform .15s, box-shadow .2s;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
-.note-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.note-card:hover { transform: translateY(-2px); box-shadow: var(--elev-2); }
 .note-title { font-weight: 700; font-size: 15px; margin-bottom: 5px; line-height: 1.3; }
 .note-card .note-text { flex: 1; opacity: .8; white-space: pre-wrap; word-break: break-word; overflow: hidden; }
 .note-card .note-foot { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); font-size: 11.5px; opacity: .6; }
@@ -340,7 +357,7 @@ main#view {
   width: 38px; height: 38px; border-radius: 10px;
   background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
   display: flex; align-items: center; justify-content: center;
-  transition: color .2s, background .2s, border-color .2s;
+  transition: color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
 }
 .mic-btn svg { width: 18px; height: 18px; }
 .mic-btn:hover { color: var(--text); }
@@ -357,7 +374,7 @@ main#view {
   background: var(--surface); border: 1px solid var(--border); color: var(--muted);
   border-radius: 20px; padding: 8px 14px; min-height: 40px; font-size: 13px; font-weight: 500;
   display: inline-flex; align-items: center; gap: 7px;
-  transition: color .2s, border-color .2s, background .2s;
+  transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
 }
 .filter-chip span { opacity: .65; font-variant-numeric: tabular-nums; }
 .filter-chip:hover { color: var(--text); border-color: var(--border-strong); }
@@ -392,11 +409,43 @@ main#view {
 .more-arrow { color: var(--muted); display: flex; }
 .more-arrow svg { width: 18px; height: 18px; }
 
+/* ============ Καταστάσεις πίεσης ============
+   Κάθε αγγίξιμο στοιχείο απαντά με το ίδιο μικρό «βύθισμα». */
+.btn, .icon-btn, .filter-chip, .seg-btn, .member-chip, .todo-check,
+.color-dot, .stars .star, .cal-cell, .more-item, .note-card, .card[data-swipe],
+.tabbar a, .side-nav a, .side-bottom a, .side-logout, .mic-btn, .toast-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.btn:active, .icon-btn:active, .filter-chip:active, .seg-btn:active,
+.member-chip:active, .todo-check:active, .color-dot:active, .stars .star:active,
+.cal-cell:active, .more-item:active, .note-card:active, .mic-btn:active,
+.toast-btn:active, .tabbar a:active {
+  transform: scale(.97);
+}
+.icon-btn:active, .filter-chip:active, .seg-btn:active { transform: scale(.94); }
+.icon-btn, .filter-chip, .seg-btn, .member-chip, .todo-check, .color-dot,
+.stars .star, .cal-cell, .more-item, .note-card, .mic-btn, .toast-btn, .tabbar a {
+  transition: transform var(--dur-fast) var(--ease-out),
+              color var(--dur) var(--ease-out),
+              background var(--dur) var(--ease-out),
+              border-color var(--dur) var(--ease-out),
+              box-shadow var(--dur) var(--ease-out);
+}
+/* Το σύρσιμο ορίζει δικό του transform, οπότε η κάρτα δεν βυθίζεται */
+.card[data-swipe]:active { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .btn:active, .icon-btn:active, .filter-chip:active, .seg-btn:active,
+  .member-chip:active, .todo-check:active, .color-dot:active, .stars .star:active,
+  .cal-cell:active, .more-item:active, .note-card:active, .mic-btn:active,
+  .toast-btn:active, .tabbar a:active { transform: none; }
+}
+
 /* Ρυθμίσεις: επιλογείς και προτιμήσεις */
 .seg { display: inline-flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 3px; gap: 3px; }
 .seg-btn {
   background: none; border: none; color: var(--muted); font-size: 13.5px; font-weight: 600;
-  padding: 8px 16px; min-height: 38px; border-radius: 9px; transition: background .2s, color .2s;
+  padding: 8px 16px; min-height: 38px; border-radius: 9px; transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
 }
 .seg-btn:hover { color: var(--text); }
 .seg-btn.active { background: var(--accent-grad); color: #fff; }
@@ -433,7 +482,7 @@ main#view {
 .member-chip {
   font-size: 12.5px; padding: 8px 13px; border-radius: 20px; min-height: 40px;
   background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
-  transition: border-color .2s, color .2s, background .2s;
+  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
 }
 .member-chip:hover { border-color: var(--border-strong); color: var(--text); }
 .member-chip.paid { background: rgba(63, 185, 80, .14); border-color: rgba(63, 185, 80, .5); color: #7ee39a; }
@@ -498,8 +547,8 @@ main#view {
 /* ---- Μεταβάσεις μεταξύ οθονών ---- */
 @keyframes viewInFwd { from { opacity: 0; transform: translateX(10px); } }
 @keyframes viewInBack { from { opacity: 0; transform: translateX(-10px); } }
-main#view.enter-fwd { animation: viewInFwd .22s ease-out; }
-main#view.enter-back { animation: viewInBack .22s ease-out; }
+main#view.enter-fwd { animation: viewInFwd var(--dur) var(--ease-out); }
+main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) {
   main#view.enter-fwd, main#view.enter-back { animation: none; }
   .sk { animation: none; }
@@ -520,7 +569,7 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
   width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
   border: 2px solid var(--border-strong); background: none;
   display: flex; align-items: center; justify-content: center; color: transparent;
-  transition: background .2s, border-color .2s, color .2s;
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
   min-width: 24px; min-height: 24px; padding: 0;
 }
 .todo-check.done { background: var(--ok); border-color: var(--ok); color: #06130a; }
@@ -542,7 +591,7 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
 .cal-cell {
   min-height: 74px; background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-sm); padding: 6px; font-size: 12.5px;
-  cursor: pointer; transition: border-color .2s; text-align: left; color: var(--text);
+  cursor: pointer; transition: border-color var(--dur) var(--ease-out); text-align: left; color: var(--text);
   display: flex; flex-direction: column; gap: 3px; overflow: hidden;
 }
 .cal-cell:hover { border-color: var(--accent); }
@@ -587,8 +636,8 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
   background: var(--bg-raised); border: 1px solid var(--border-strong);
   border-radius: var(--radius); width: 100%; max-width: 460px;
   max-height: 90dvh; overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,.5), var(--glow);
-  animation: pop .18s ease-out;
+  box-shadow: var(--elev-3), var(--glow);
+  animation: pop var(--dur-fast) var(--ease-out) ease-out;
 }
 @keyframes pop { from { transform: scale(.96); opacity: 0; } }
 .sheet-handle { display: none; }
@@ -609,7 +658,7 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 .colors { display: flex; gap: 8px; flex-wrap: wrap; }
-.color-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; transition: transform .15s; }
+.color-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; transition: transform var(--dur-fast) var(--ease-out); }
 .color-dot:hover { transform: scale(1.12); }
 .color-dot.selected { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,.4); }
 
@@ -618,8 +667,8 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
 .toast {
   background: var(--surface2); border: 1px solid var(--border-strong); color: var(--text);
   padding: 11px 20px; border-radius: 12px; font-size: 14px;
-  opacity: 0; transform: translateY(8px); transition: opacity .25s, transform .25s;
-  box-shadow: 0 8px 30px rgba(0,0,0,.4); max-width: 90vw;
+  opacity: 0; transform: translateY(8px); transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+  box-shadow: var(--elev-2); max-width: 90vw;
 }
 .toast.show { opacity: 1; transform: none; }
 .toast-error { border-color: var(--danger); color: #ffb3ae; }
@@ -630,7 +679,7 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
 .auth-card {
   background: var(--bg-raised); border: 1px solid var(--border-strong);
   border-radius: 20px; padding: 40px 36px; width: 100%; max-width: 400px;
-  box-shadow: 0 24px 80px rgba(0,0,0,.5), var(--glow); text-align: center;
+  box-shadow: var(--elev-3), var(--glow); text-align: center;
 }
 .auth-logo { width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 16px; background: var(--accent-grad); box-shadow: var(--glow); }
 .auth-card h1 { font-size: 23px; margin-bottom: 6px; }
@@ -665,7 +714,7 @@ main#view.enter-back { animation: viewInBack .22s ease-out; }
     border-left: none; border-right: none; border-bottom: none;
     max-height: 92dvh;
     padding-bottom: env(safe-area-inset-bottom);
-    animation: sheetUp .26s cubic-bezier(.32, .72, 0, 1);
+    animation: sheetUp var(--dur-slow) var(--ease-spring);
     will-change: transform;
   }
   @keyframes sheetUp { from { transform: translateY(100%); } }

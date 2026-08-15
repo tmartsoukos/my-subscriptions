@@ -1,7 +1,7 @@
 import { watchlist } from "../db.js";
 import {
   escapeHtml, icons, toast, toastAction, openModal, confirmModal,
-  micButtonHtml, bindMicButtons, bindSwipe
+  micButtonHtml, bindMicButtons, bindSwipe, haptic
 } from "../ui.js";
 
 const KINDS = { movie: "Ταινία", series: "Σειρά", book: "Βιβλίο", game: "Παιχνίδι", other: "Άλλο" };
@@ -150,6 +150,7 @@ export async function render(view) {
   const rerender = () => render(view);
 
   async function cycleStatus(w) {
+    haptic("ok");
     const next = w.status === "planned" ? "active" : w.status === "active" ? "done" : "planned";
     await watchlist.update(w.id, { status: next });
     await rerender();

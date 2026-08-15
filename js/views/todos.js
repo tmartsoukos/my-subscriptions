@@ -1,7 +1,7 @@
 import { todos, courses } from "../db.js";
 import {
   escapeHtml, isoLocal, daysUntil, fmtDateShort, icons, toast, toastAction,
-  openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons
+  openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons, haptic
 } from "../ui.js";
 import { parseGreekTask, speechSupported } from "../voice.js";
 
@@ -130,6 +130,7 @@ export async function render(view) {
   const rerender = () => render(view);
 
   async function toggleDone(t) {
+    haptic(t.done ? "tap" : "ok");
     await todos.update(t.id, { done: !t.done });
     await rerender();
   }

@@ -109,6 +109,16 @@ export const icons = {
   apple: svg('<path d="M12 20.94c1.5 0 2.75-.63 3.86-1.89 1.13-1.28 1.64-2.58 1.64-2.63-.03-.01-3.13-1.2-3.13-4.53 0-2.88 2.36-4.16 2.46-4.23-1.35-1.97-3.43-2.02-4-2.02-1.7 0-3.1 1.03-3.9 1.03-.83 0-2.1-1-3.46-.97-1.78.03-3.42 1.03-4.33 2.62-1.85 3.21-.47 7.95 1.33 10.55.88 1.27 1.93 2.7 3.3 2.65 1.32-.05 1.82-.86 3.42-.86 1.59 0 2.04.86 3.43.83Z"/><path d="M15.5 3.5c.73-.88 1.22-2.1 1.08-3.32-1.05.04-2.32.7-3.07 1.58-.68.78-1.27 2.03-1.11 3.22 1.17.09 2.36-.6 3.1-1.48Z"/>')
 };
 
+// ---- Απτική ανάδραση ----
+// Υποστηρίζεται σε Android/Chrome. Σε iOS το Safari δεν έχει Vibration API,
+// οπότε η κλήση απλώς δεν κάνει τίποτα.
+const HAPTIC = { tap: 8, ok: [10, 30, 12], warn: 22 };
+export function haptic(kind = "tap") {
+  // Η προτίμηση «λιγότερη κίνηση» αφορά την οπτική κίνηση, όχι την απτική ανάδραση
+  if (!navigator.vibrate) return;
+  navigator.vibrate(HAPTIC[kind] ?? HAPTIC.tap);
+}
+
 // ---- Toast ----
 export function toast(msg, type = "ok") {
   const root = document.getElementById("toastRoot");
@@ -221,8 +231,8 @@ export function bindSwipe(el, { onLeft, onRight }) {
     wrap.classList.remove("swiping-left", "swiping-right", "swipe-armed");
     const moved = dx;
     dx = 0;
-    if (moved <= -THRESHOLD) onLeft?.();
-    else if (moved >= THRESHOLD) onRight?.();
+    if (moved <= -THRESHOLD) { haptic("ok"); onLeft?.(); }
+    else if (moved >= THRESHOLD) { haptic("warn"); onRight?.(); }
   };
   el.addEventListener("touchend", finish);
   el.addEventListener("touchcancel", finish);
@@ -258,6 +268,7 @@ function bindSheetDrag(overlay, close) {
     const fast = Date.now() - startedAt < 300 && dy > 50;
     modal.style.transition = "transform .22s ease-out";
     if (dy > CLOSE_AT || fast) {
+      haptic("tap");
       modal.style.transform = "translateY(100%)";
       overlay.style.background = "rgba(2, 6, 18, 0)";
       setTimeout(close, 200);

@@ -3,7 +3,7 @@ import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, unpaidMembers,
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
-  colorPickerHtml, bindColorPicker, pickedColor
+  colorPickerHtml, bindColorPicker, pickedColor, haptic
 } from "../ui.js";
 import { logoFor } from "../logos.js";
 
@@ -270,6 +270,7 @@ export async function render(view) {
     const delBtn = e.target.closest("[data-del]");
 
     if (paidBtn) {
+      haptic("ok");
       const [id, idx] = paidBtn.dataset.paid.split(":");
       const sub = items.find(s => s.id === id);
       const cycleIso = isoLocal(nextDue(sub));

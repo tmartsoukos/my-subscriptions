@@ -95,6 +95,7 @@ export const notes = store("notes", "updated_at", false);
 export const watchlist = store("watchlist", "created_at", false);
 export const courses = store("courses", "semester");
 export const health = store("health_items", "item_date");
+export const finance = store("finance_entries", "entry_date", false);
 
 // ---- Εικόνες σημειώσεων (ιδιωτικός κάδος, πρόσβαση με signed URL) ----
 const BUCKET = "note-images";

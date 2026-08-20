@@ -4,6 +4,7 @@ import {
   openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons, haptic
 } from "../ui.js";
 import { parseGreekTask, speechSupported } from "../voice.js";
+import { refreshBadge } from "../badge.js";
 
 const PRIO_LABEL = { 1: "Υψηλή", 2: "Μεσαία", 3: "Χαμηλή" };
 let items = [];
@@ -103,8 +104,9 @@ function itemHtml(t) {
   </div>`;
 }
 
-export async function render(view) {
-  [items, courseList] = await Promise.all([todos.list(), courses.list().catch(() => [])]);
+// cached: true -> σχεδίαση από την τοπική κατάσταση, χωρίς νέο αίτημα (αισιόδοξη ενημέρωση)
+export async function render(view, { cached = false } = {}) {
+  if (!cached) [items, courseList] = await Promise.all([todos.list(), courses.list().catch(() => [])]);
   const pending = items.filter(t => !t.done)
     .sort((a, b) => a.priority - b.priority || (a.due_date || "9999").localeCompare(b.due_date || "9999"));
   const done = items.filter(t => t.done);
@@ -127,16 +129,36 @@ export async function render(view) {
     ${!items.length ? `<div class="empty">${icons.check}<p>Καμία εργασία ακόμα. Πρόσθεσε την πρώτη σου!</p><button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα εργασία</button></div>` : ""}
   `;
 
-  const rerender = () => render(view);
+  const rerender = (cached = false) => render(view, { cached });
 
   async function toggleDone(t) {
     haptic(t.done ? "tap" : "ok");
-    await todos.update(t.id, { done: !t.done });
-    await rerender();
+    // Αισιόδοξη ενημέρωση: η οθόνη αλλάζει αμέσως, ο server ακολουθεί
+    const previous = t.done;
+    t.done = !t.done;
+    await rerender(true);              // άμεση σχεδίαση από την τοπική κατάσταση
+    try {
+      await todos.update(t.id, { done: t.done });
+      refreshBadge();
+    } catch (e) {
+      t.done = previous;
+      await rerender(true);
+      toast("Δεν αποθηκεύτηκε — δοκίμασε ξανά", "error");
+    }
   }
   async function removeTodo(t) {
-    await todos.remove(t.id);
-    await rerender();
+    const backup = [...items];
+    items = items.filter(x => x.id !== t.id);   // αισιόδοξη αφαίρεση
+    await rerender(true);
+    try {
+      await todos.remove(t.id);
+      refreshBadge();
+    } catch {
+      items = backup;
+      await rerender(true);
+      toast("Δεν διαγράφηκε", "error");
+      return;
+    }
     toastAction("Η εργασία διαγράφηκε", "Αναίρεση", async () => {
       // Επαναφορά με το ίδιο id ώστε να μη χαθεί η σειρά/αναφορά
       await todos.insert({

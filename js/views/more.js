@@ -2,6 +2,7 @@ import { icons } from "../ui.js";
 
 // Σελίδα «Περισσότερα» για το κινητό — στο desktop όλα φαίνονται στο πλαϊνό μενού
 const LINKS = [
+  { href: "#/subs", ico: "card", title: "Συνδρομές", desc: "Σταθερές χρεώσεις και δοκιμές" },
   { href: "#/notes", ico: "note", title: "Σημειώσεις", desc: "Κείμενο, εικόνες, λίστες" },
   { href: "#/studies", ico: "book", title: "Σπουδές", desc: "Μαθήματα, βαθμοί, προθεσμίες" },
   { href: "#/health", ico: "heart", title: "Υγεία", desc: "Ραντεβού, εξετάσεις, φάρμακα" },

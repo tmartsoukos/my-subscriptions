@@ -1,4 +1,4 @@
-import { subscriptions, todos, events } from "../db.js";
+import { subscriptions, todos, events, finance } from "../db.js";
 import {
   escapeHtml, fmt, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, icons, today
@@ -31,9 +31,15 @@ function monthlyProjection(subs) {
 }
 
 export async function render(view) {
-  const [subs, todoItems, evItems] = await Promise.all([
-    subscriptions.list(), todos.list(), events.list()
+  const [subs, todoItems, evItems, finItems] = await Promise.all([
+    subscriptions.list(), todos.list(), events.list(), finance.list().catch(() => [])
   ]);
+
+  // Οικονομικά τρέχοντος μήνα (αν υπάρχουν εγγραφές)
+  const monthStart = isoLocal(new Date(today().getFullYear(), today().getMonth(), 1));
+  const monthEntries = finItems.filter(e => e.entry_date >= monthStart);
+  const monthIn = monthEntries.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
+  const monthOut = monthEntries.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
 
   const trials = subs.filter(isInTrial);
   const monthly = subs.filter(s => !isInTrial(s)).reduce((s, x) => s + monthlyCost(x), 0);
@@ -92,6 +98,8 @@ export async function render(view) {
       <div class="stat"><div class="label">Υποχρεώσεις 7 ημερών</div><div class="value">${weekEvents.length}</div></div>
       ${owedTotal > 0 ? `<div class="stat"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owedTotal)}</div></div>` : ""}
       ${trials.length ? `<div class="stat"><div class="label">Σε δοκιμή</div><div class="value">${trials.length}</div></div>` : ""}
+      ${finItems.length ? `<div class="stat"><div class="label">Υπόλοιπο μήνα</div>
+        <div class="value ${monthIn - monthOut - monthly >= 0 ? "amount-in" : "amount-out"}">${fmt(monthIn - monthOut - monthly)}</div></div>` : ""}
     </div>
 
     ${subs.length ? `<div class="charts">

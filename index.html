@@ -7,6 +7,27 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1290x2796.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1290x2796-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1179x2556.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1179x2556-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1284x2778.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1284x2778-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1170x2532-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1125x2436-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1242x2688.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/splash-1242x2688-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/splash-828x1792.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/splash-828x1792-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/splash-750x1334.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/splash-750x1334-light.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark) and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/splash-1536x2048.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme: light) and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/splash-1536x2048-light.png">
 <link rel="stylesheet" href="css/app.css">
 <title>Το Dashboard μου</title>
 <script>
@@ -58,6 +79,7 @@
     </div>
     <nav class="side-nav" aria-label="Κύρια πλοήγηση">
       <a href="#/dashboard" data-route="dashboard"><span class="nav-ico" data-ico="home"></span>Επισκόπηση</a>
+      <a href="#/finance" data-route="finance"><span class="nav-ico" data-ico="wallet"></span>Οικονομικά</a>
       <a href="#/subs" data-route="subs"><span class="nav-ico" data-ico="card"></span>Συνδρομές</a>
       <a href="#/todos" data-route="todos"><span class="nav-ico" data-ico="check"></span>Εργασίες</a>
       <a href="#/calendar" data-route="calendar"><span class="nav-ico" data-ico="calendar"></span>Ημερολόγιο</a>
@@ -83,7 +105,7 @@
 
   <nav class="tabbar" aria-label="Πλοήγηση κινητού">
     <a href="#/dashboard" data-route="dashboard"><span class="nav-ico" data-ico="home"></span><span>Αρχική</span></a>
-    <a href="#/subs" data-route="subs"><span class="nav-ico" data-ico="card"></span><span>Συνδρομές</span></a>
+    <a href="#/finance" data-route="finance"><span class="nav-ico" data-ico="wallet"></span><span>Οικονομικά</span></a>
     <a href="#/todos" data-route="todos"><span class="nav-ico" data-ico="check"></span><span>Εργασίες</span></a>
     <a href="#/calendar" data-route="calendar"><span class="nav-ico" data-ico="calendar"></span><span>Ημ/γιο</span></a>
     <a href="#/more" data-route="more"><span class="nav-ico" data-ico="dots"></span><span>Περισσότερα</span></a>

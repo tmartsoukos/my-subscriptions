@@ -1,6 +1,8 @@
 import "./theme.js";
 import { getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData } from "./db.js";
 import { icons, toast } from "./ui.js";
+import { refreshBadge } from "./badge.js";
+import { initScrollTop } from "./scrolltop.js";
 import * as router from "./router.js";
 import * as dashboard from "./views/dashboard.js";
 import * as subs from "./views/subscriptions.js";
@@ -10,6 +12,7 @@ import * as notesView from "./views/notes.js";
 import * as watchlistView from "./views/watchlist.js";
 import * as studiesView from "./views/studies.js";
 import * as healthView from "./views/health.js";
+import * as financeView from "./views/finance.js";
 import * as moreView from "./views/more.js";
 import * as settingsView from "./views/settings.js";
 
@@ -21,6 +24,7 @@ router.register("notes", notesView.render);
 router.register("watchlist", watchlistView.render);
 router.register("studies", studiesView.render);
 router.register("health", healthView.render);
+router.register("finance", financeView.render);
 router.register("more", moreView.render);
 router.register("settings", settingsView.render);
 
@@ -44,9 +48,11 @@ async function showApp() {
   if (!appStarted) {
     appStarted = true;
     router.start();
+    initScrollTop();
   } else {
     router.render();
   }
+  refreshBadge();
   // Μία φορά: εισαγωγή παλιών τοπικών δεδομένων
   try {
     const n = await migrateLocalData();

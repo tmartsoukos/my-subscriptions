@@ -42,6 +42,7 @@ const blocks = (n = 3) => Array.from({ length: n }, () => `
 
 const LAYOUTS = {
   dashboard: () => head() + stats(4) + charts(),
+  finance: () => head() + stats(5) + filters() + charts() + rows(3),
   subs: () => head() + stats(3) + rows(4),
   todos: () => head() + stats(2) + rows(4),
   calendar: () => head() + calendarGrid(),

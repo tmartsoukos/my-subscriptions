@@ -122,8 +122,8 @@ function cardHtml(w) {
   </div>`;
 }
 
-export async function render(view) {
-  items = await watchlist.list();
+export async function render(view, { cached = false } = {}) {
+  if (!cached) items = await watchlist.list();
   const counts = {
     all: items.length,
     planned: items.filter(w => w.status === "planned").length,
@@ -147,13 +147,21 @@ export async function render(view) {
          ${items.length ? "" : `<button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα καταχώριση</button>`}</div>`}
   `;
 
-  const rerender = () => render(view);
+  const rerender = (cached = false) => render(view, { cached });
 
   async function cycleStatus(w) {
     haptic("ok");
     const next = w.status === "planned" ? "active" : w.status === "active" ? "done" : "planned";
-    await watchlist.update(w.id, { status: next });
-    await rerender();
+    const previous = w.status;
+    w.status = next;                 // αισιόδοξη ενημέρωση
+    await rerender(true);
+    try {
+      await watchlist.update(w.id, { status: next });
+    } catch {
+      w.status = previous;
+      await rerender(true);
+      toast("Δεν αποθηκεύτηκε", "error");
+    }
   }
   async function removeItem(w) {
     await watchlist.remove(w.id);

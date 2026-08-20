@@ -3,7 +3,7 @@ import { skeletonFor } from "./skeleton.js";
 
 const routes = {};
 let defaultRoute = "dashboard";
-const ORDER = ["dashboard", "subs", "todos", "calendar", "notes", "studies", "health", "watchlist", "more", "settings"];
+const ORDER = ["dashboard", "finance", "subs", "todos", "calendar", "notes", "studies", "health", "watchlist", "more", "settings"];
 let lastRoute = null;
 
 export function register(name, renderFn) {
@@ -28,7 +28,7 @@ export async function render() {
   const name = routes[current()] ? current() : defaultRoute;
   const view = document.getElementById("view");
   // Στο κινητό οι σελίδες Σημειώσεις/Λίστα/Ρυθμίσεις ζουν κάτω από το tab «Περισσότερα»
-  const UNDER_MORE = ["notes", "watchlist", "studies", "health", "settings", "more"];
+  const UNDER_MORE = ["notes", "watchlist", "studies", "health", "subs", "settings", "more"];
   document.querySelectorAll("[data-route]").forEach(a => {
     const active = a.dataset.route === name ||
       (a.dataset.route === "more" && UNDER_MORE.includes(name));

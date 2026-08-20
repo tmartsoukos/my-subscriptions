@@ -765,3 +765,35 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
   .stats { grid-template-columns: 1fr 1fr; gap: var(--space-2); }
   .stat .value { font-size: 19px; }
 }
+
+/* ============ Επιστροφή στην κορυφή ============ */
+.scroll-top {
+  position: fixed; right: 18px; z-index: 60;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border-strong); box-shadow: var(--elev-2);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transform: translateY(10px) scale(.9);
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+.scroll-top.show { opacity: 1; pointer-events: auto; transform: none; }
+.scroll-top:active { transform: scale(.92); }
+.scroll-top svg { width: 22px; height: 22px; }
+@media (max-width: 899px) { .scroll-top { bottom: calc(84px + env(safe-area-inset-bottom)); } }
+
+/* ============ Οικονομικά ============ */
+.amount-in { color: var(--ok); }
+.amount-out { color: var(--danger); }
+.stat .value.amount-in, .stat .value.amount-out { letter-spacing: -0.01em; }
+.day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.day-sum { font-size: var(--fs-sm); text-transform: none; letter-spacing: 0; font-weight: 600; }
+.day-sum .amount-in { margin-right: 8px; }
+.fixed-card { margin-bottom: var(--space-4); }
+.fixed-row { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-base); }
+.fixed-row strong { font-size: var(--fs-md); }
+.sql-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px; overflow-x: auto; font-family: Consolas, monospace; font-size: 12px;
+  line-height: 1.5; color: var(--muted); white-space: pre;
+}

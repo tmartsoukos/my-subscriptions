@@ -840,3 +840,64 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
   .list > *, .notes-grid > *, .stats > *, .more-list > *,
   .bar-rise, .donut-seg, .donut-label { animation: none; }
 }
+
+/* ============ Προσωποποίηση ============ */
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent-grad); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: var(--fs-sm); font-weight: 700; overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28);
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-sm { width: 28px; height: 28px; font-size: var(--fs-xs); }
+.avatar-lg { width: 64px; height: 64px; font-size: var(--fs-lg); }
+
+.profile-row { display: flex; gap: var(--space-4); align-items: flex-start; }
+.profile-fields { flex: 1; min-width: 0; }
+.profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.profile-actions label { cursor: pointer; }
+
+.accents { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
+.accent-dot {
+  width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent;
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+.accent-dot:hover { transform: scale(1.1); }
+.accent-dot.active { border-color: var(--text); box-shadow: 0 0 0 3px var(--surface2); }
+
+.mini-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-3); }
+.mini-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 8px 8px 14px; font-size: var(--fs-sm);
+}
+.cat-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 8px; }
+
+/* Γρήγορες ενέργειες στα Οικονομικά */
+.quick-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-4); }
+.quick-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  padding: 8px 14px; border-radius: 22px; font-size: var(--fs-sm); font-weight: 600;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  box-shadow: var(--elev-1);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+.quick-chip:active { transform: scale(.96); }
+.quick-chip.out strong { color: var(--danger); }
+.quick-chip.in strong { color: var(--ok); }
+.quick-chip:hover { border-color: var(--border-strong); }
+
+/* Στόχοι στην αρχική */
+.goals-card { margin-bottom: var(--space-4); }
+.goal + .goal { margin-top: var(--space-4); }
+.goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: var(--fs-sm); }
+.goal-bar {
+  height: 8px; border-radius: 4px; background: var(--surface2);
+  margin: 7px 0 5px; overflow: hidden;
+}
+.goal-bar span {
+  display: block; height: 100%; border-radius: 4px;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.goal-note { font-size: var(--fs-xs); color: var(--muted); }

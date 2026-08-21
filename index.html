@@ -40,6 +40,19 @@
     document.documentElement.dataset.theme = eff;
     document.documentElement.dataset.density = localStorage.getItem("pref:density") || "comfortable";
     document.documentElement.style.colorScheme = eff;
+    // Χρώμα τόνου πριν την πρώτη ζωγραφιά
+    var accents = {
+      blue:["#3b82f6","#7c6cf6","#2563eb","#6d5cf0"], violet:["#8b5cf6","#d946a6","#7c3aed","#c026a3"],
+      green:["#22b07d","#4c8dff","#0f9d63","#2563eb"], amber:["#e08b2f","#e2585c","#c2710f","#d1373c"],
+      rose:["#e0518f","#8b5cf6","#d02b73","#7c3aed"], teal:["#14a3b8","#3b82f6","#0e8ba0","#2563eb"]
+    };
+    var a = accents[localStorage.getItem("pref:accent") || "blue"] || accents.blue;
+    var c1 = eff === "light" ? a[2] : a[0], c2 = eff === "light" ? a[3] : a[1];
+    var rs = document.documentElement.style;
+    rs.setProperty("--accent", c1);
+    rs.setProperty("--accent2", c2);
+    rs.setProperty("--accent-grad", "linear-gradient(135deg, " + c1 + ", " + c2 + ")");
+    rs.setProperty("--glow", eff === "light" ? "0 2px 12px " + c1 + "33" : "0 0 24px " + c1 + "59");
   })();
 </script>
 </head>
@@ -74,8 +87,8 @@
 <div id="app" class="app hidden">
   <aside class="sidebar">
     <div class="brand">
-      <img src="icon-192.png" alt="" width="34" height="34">
-      <span>Dashboard</span>
+      <span class="avatar" data-avatar aria-hidden="true"></span>
+      <span data-username>Dashboard</span>
     </div>
     <nav class="side-nav" aria-label="Κύρια πλοήγηση">
       <a href="#/dashboard" data-route="dashboard"><span class="nav-ico" data-ico="home"></span>Επισκόπηση</a>
@@ -96,7 +109,7 @@
 
   <div class="main-col">
     <header class="mobile-header">
-      <div class="brand"><img src="icon-192.png" alt="" width="28" height="28"><span>Dashboard</span></div>
+      <div class="brand"><span class="avatar avatar-sm" data-avatar aria-hidden="true"></span><span data-username>Dashboard</span></div>
       <a href="#/settings" class="icon-btn" aria-label="Ρυθμίσεις"><span class="nav-ico" data-ico="settings"></span></a>
     </header>
     <div id="offlineBanner" class="offline-banner hidden">Εκτός σύνδεσης — προβολή αποθηκευμένων δεδομένων (μόνο ανάγνωση)</div>

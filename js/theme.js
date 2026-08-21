@@ -28,6 +28,8 @@ export function applyTheme() {
 export function setTheme(mode) {
   localStorage.setItem(THEME_KEY, mode);
   applyTheme();
+  // Το χρώμα τόνου έχει διαφορετική απόχρωση ανά θέμα
+  import("./prefs.js").then(m => m.applyAccent()).catch(() => {});
 }
 export function setDensity(value) {
   localStorage.setItem(DENSITY_KEY, value);

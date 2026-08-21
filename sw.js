@@ -1,10 +1,10 @@
-const CACHE = "dash-v10";
+const CACHE = "dash-v11";
 const ASSETS = [
   "./", "index.html", "manifest.json", "icon-192.png", "icon-512.png",
   "css/app.css",
   "js/main.js", "js/config.js", "js/db.js", "js/ui.js", "js/router.js", "js/charts.js",
   "js/logos.js", "js/voice.js", "js/markdown.js", "js/theme.js", "js/push.js", "js/skeleton.js",
-  "js/badge.js", "js/scrolltop.js",
+  "js/badge.js", "js/scrolltop.js", "js/prefs.js",
   "js/views/dashboard.js", "js/views/subscriptions.js", "js/views/todos.js",
   "js/views/calendar.js", "js/views/notes.js", "js/views/settings.js",
   "js/views/watchlist.js", "js/views/more.js", "js/views/studies.js", "js/views/health.js",

@@ -5,6 +5,14 @@ import {
 } from "../ui.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
 import { logoFor } from "../logos.js";
+import { greeting, prefs } from "../prefs.js";
+
+const GOAL_LABELS = {
+  subs_monthly: "Όριο συνδρομών",
+  expense_monthly: "Όριο εξόδων μήνα",
+  save_monthly: "Αποταμίευση μήνα",
+  tasks_weekly: "Ολοκληρωμένες εργασίες"
+};
 
 // Χρεώσεις που πέφτουν σε κάθε έναν από τους επόμενους 12 μήνες
 function monthlyProjection(subs) {
@@ -76,8 +84,26 @@ export async function render(view) {
     .filter(t => t.due_date && t.due_date <= todayIso || t.priority === 1)
     .slice(0, 4);
 
+  // Στόχοι: πρόοδος με βάση τα πραγματικά δεδομένα του μήνα
+  const doneThisWeek = todoItems.filter(t => t.done).length;
+  const goalRows = (prefs().goals || []).map(g => {
+    const current =
+      g.metric === "subs_monthly" ? monthly :
+      g.metric === "expense_monthly" ? monthOut + monthly :
+      g.metric === "save_monthly" ? Math.max(monthIn - monthOut - monthly, 0) :
+      doneThisWeek;
+    const target = Number(g.target);
+    const pct = target > 0 ? Math.min(current / target * 100, 100) : 0;
+    // Σε όρια δαπάνης θέλουμε να μένουμε κάτω· σε αποταμίευση/εργασίες να φτάνουμε πάνω
+    const isCap = g.metric === "subs_monthly" || g.metric === "expense_monthly";
+    const good = isCap ? current <= target : current >= target;
+    const unit = g.metric === "tasks_weekly" ? "" : "€";
+    const fmtVal = v => g.metric === "tasks_weekly" ? String(Math.round(v)) : fmt(v);
+    return { g, pct, good, isCap, current, target, unit, fmtVal };
+  });
+
   view.innerHTML = `
-    <div class="page-head"><h1>Επισκόπηση</h1></div>
+    <div class="page-head"><h1>${escapeHtml(greeting())}</h1></div>
 
     ${endingTrials.length ? `<div class="alert-trial">
       ${icons.bell}
@@ -101,6 +127,21 @@ export async function render(view) {
       ${finItems.length ? `<div class="stat"><div class="label">Υπόλοιπο μήνα</div>
         <div class="value ${monthIn - monthOut - monthly >= 0 ? "amount-in" : "amount-out"}">${fmt(monthIn - monthOut - monthly)}</div></div>` : ""}
     </div>
+
+    ${goalRows.length ? `<div class="chart-card goals-card">
+      <h3>Στόχοι</h3>
+      ${goalRows.map(({ g, pct, good, isCap, current, target, fmtVal }) => `
+        <div class="goal">
+          <div class="goal-head">
+            <span>${escapeHtml(g.label || GOAL_LABELS[g.metric])}</span>
+            <strong class="${good ? "amount-in" : "amount-out"}">${fmtVal(current)} / ${fmtVal(target)}</strong>
+          </div>
+          <div class="goal-bar"><span style="width:${pct}%;background:${good ? "var(--ok)" : "var(--warn)"}"></span></div>
+          <div class="goal-note">${isCap
+            ? (good ? `Μένεις εντός ορίου` : `Ξεπέρασες το όριο κατά ${fmtVal(current - target)}`)
+            : (good ? `Το έπιασες` : `Λείπουν ${fmtVal(target - current)}`)}</div>
+        </div>`).join("")}
+    </div>` : ""}
 
     ${subs.length ? `<div class="charts">
       <div class="chart-card">

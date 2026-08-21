@@ -4,6 +4,7 @@ import {
   openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml, bindMicButtons, collapseRow
 } from "../ui.js";
 import { barChart, donutChart } from "../charts.js";
+import { prefs, mergedCategories, categoryColors } from "../prefs.js";
 
 export const INCOME_CATEGORIES = {
   salary: "Μισθός", freelance: "Ελεύθερος επαγγελματίας", scholarship: "Υποτροφία/επίδομα",
@@ -25,7 +26,10 @@ let subs = [];
 let range = "month";       // today | week | month
 let tableMissing = false;
 
-const label = e => (e.kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES)[e.category] || "Άλλο";
+// Οι δικές μου κατηγορίες προστίθενται στις προεπιλεγμένες
+const cats = kind => mergedCategories(kind, kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES);
+const colors = () => categoryColors("expense", CAT_COLOR);
+const label = e => cats(e.kind)[e.category] || "Άλλο";
 
 function rangeStart() {
   const t = today();
@@ -49,7 +53,7 @@ function subsCost() {
 }
 
 function formHtml(e, kind) {
-  const cats = kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const list = cats(kind);
   return `
     <div class="row2">
       <div class="field">
@@ -64,7 +68,7 @@ function formHtml(e, kind) {
     <div class="field">
       <label for="fCat">Κατηγορία</label>
       <select id="fCat">
-        ${Object.entries(cats).map(([v, l]) =>
+        ${Object.entries(list).map(([v, l]) =>
           `<option value="${v}" ${e?.category === v ? "selected" : ""}>${l}</option>`).join("")}
       </select>
     </div>
@@ -111,7 +115,7 @@ function entryHtml(e) {
       <span class="sw-done">${icons.edit} Επεξεργασία</span>
     </div>
     <div class="card fin-item" data-swipe="${e.id}">
-      <div class="logo logo-sm" style="--logo:${income ? "#31a35f" : CAT_COLOR[e.category] || "#7b8fd6"};background:${income ? "#31a35f" : CAT_COLOR[e.category] || "#7b8fd6"}">
+      <div class="logo logo-sm" style="--logo:${income ? "#31a35f" : colors()[e.category] || "#7b8fd6"};background:${income ? "#31a35f" : colors()[e.category] || "#7b8fd6"}">
         ${income ? icons.chart : icons.wallet}
       </div>
       <div class="card-main">
@@ -178,6 +182,7 @@ create policy "own finance" on public.finance_entries
     return;
   }
 
+  const quick = (prefs().quick || []).filter(q => q.kind !== "todo");
   const shown = items.filter(inRange).sort((a, b) =>
     b.entry_date.localeCompare(a.entry_date) || b.created_at.localeCompare(a.created_at));
   const income = shown.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
@@ -198,7 +203,7 @@ create policy "own finance" on public.finance_entries
     byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount);
   }
   const donutItems = Object.entries(byCat)
-    .map(([c, v]) => ({ label: EXPENSE_CATEGORIES[c] || "Άλλο", value: v, color: CAT_COLOR[c] || "#7b8fd6" }))
+    .map(([c, v]) => ({ label: cats("expense")[c] || "Άλλο", value: v, color: colors()[c] || "#7b8fd6" }))
     .concat(fixed > 0 ? [{ label: "Συνδρομές", value: fixed, color: CAT_COLOR.subs }] : [])
     .sort((a, b) => b.value - a.value);
 
@@ -228,6 +233,12 @@ create policy "own finance" on public.finance_entries
       </div>
       <div class="stat"><div class="label">Μέσο ημερήσιο έξοδο</div><div class="value">${fmt(perDay)}</div></div>
     </div>
+
+    ${quick.length ? `<div class="quick-row">
+      ${quick.map(q => `<button class="quick-chip ${q.kind === "income" ? "in" : "out"}" data-quick="${q.id}">
+        <span>${escapeHtml(q.label)}</span>${q.amount != null ? `<strong>${q.kind === "income" ? "+" : "−"}${fmt(q.amount)}</strong>` : ""}
+      </button>`).join("")}
+    </div>` : ""}
 
     <div class="filters">
       ${[["today", "Σήμερα"], ["week", "7 ημέρες"], ["month", "Αυτόν τον μήνα"]].map(([v, l]) =>
@@ -305,6 +316,23 @@ create policy "own finance" on public.finance_entries
       onRight: () => removeEntry(e)
     });
   });
+
+  view.querySelectorAll("[data-quick]").forEach(btn => btn.addEventListener("click", async () => {
+    const q = quick.find(x => x.id === btn.dataset.quick);
+    if (!q) return;
+    haptic("ok");
+    try {
+      await finance.insert({
+        kind: q.kind, amount: Number(q.amount || 0),
+        category: q.category || (q.kind === "income" ? "other_in" : "other_out"),
+        note: q.label, entry_date: isoLocal(today())
+      });
+      toast(`${q.label} — καταχωρήθηκε`);
+      await rerender();
+    } catch {
+      toast("Δεν καταχωρήθηκε", "error");
+    }
+  }));
 
   view.onclick = async ev => {
     const editBtn = ev.target.closest("[data-edit]");

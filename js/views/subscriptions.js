@@ -6,6 +6,7 @@ import {
   colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow
 } from "../ui.js";
 import { logoFor } from "../logos.js";
+import { mergedCategories } from "../prefs.js";
 
 let items = [];
 
@@ -43,7 +44,7 @@ function formHtml(sub) {
       <div class="field">
         <label for="fCat">Κατηγορία</label>
         <select id="fCat">
-          ${Object.entries(CATEGORIES).map(([v, l]) =>
+          ${Object.entries(mergedCategories("subscription", CATEGORIES)).map(([v, l]) =>
             `<option value="${v}" ${sub?.category === v ? "selected" : ""}>${l}</option>`).join("")}
         </select>
       </div>
@@ -215,7 +216,7 @@ function cardHtml(s) {
     <div class="card-main">
       <div class="name">${escapeHtml(s.name)}
         ${trial ? `<span class="badge badge-trial">ΔΟΚΙΜΗ</span>` : ""}
-        <span class="chip">${CATEGORIES[s.category] || "Άλλο"}</span>
+        <span class="chip">${mergedCategories("subscription", CATEGORIES)[s.category] || "Άλλο"}</span>
         ${shared ? `<span class="chip">${shareCount(s)} άτομα</span>` : ""}
       </div>
       <div class="meta">${CYCLE_LABEL[s.cycle]} · ${trial ? "δωρεάν τώρα, μετά " : ""}${fmt(monthlyCost(s))}/μήνα${shared ? " (μερίδιό σου)" : ""}</div>

@@ -2,6 +2,7 @@ import "./theme.js";
 import { getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData } from "./db.js";
 import { icons, toast } from "./ui.js";
 import { refreshBadge } from "./badge.js";
+import { loadPrefs, getStartRoute } from "./prefs.js";
 import { initScrollTop } from "./scrolltop.js";
 import * as router from "./router.js";
 import * as dashboard from "./views/dashboard.js";
@@ -47,6 +48,8 @@ async function showApp() {
   app.classList.remove("hidden");
   if (!appStarted) {
     appStarted = true;
+    await loadPrefs();
+    if (!location.hash) location.hash = "#/" + getStartRoute();
     router.start();
     initScrollTop();
   } else {

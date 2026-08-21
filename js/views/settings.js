@@ -1,8 +1,23 @@
 import { getOrCreateIcsToken, regenerateIcsToken, migrateLocalData, sb } from "../db.js";
 import { FUNCTIONS_URL } from "../config.js";
-import { icons, toast, confirmModal } from "../ui.js";
+import { icons, toast, confirmModal, openModal, escapeHtml, fmt, haptic } from "../ui.js";
 import { pushSupported, isIOS, isStandalone, currentSubscription, enablePush, disablePush, getPrefs, savePrefs } from "../push.js";
 import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
+import {
+  ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
+  uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories
+} from "../prefs.js";
+
+const ROUTES = {
+  dashboard: "Επισκόπηση", finance: "Οικονομικά", subs: "Συνδρομές", todos: "Εργασίες",
+  calendar: "Ημερολόγιο", notes: "Σημειώσεις", studies: "Σπουδές", health: "Υγεία", watchlist: "Λίστα"
+};
+const GOAL_METRICS = {
+  subs_monthly: "Όριο συνδρομών (€/μήνα)",
+  expense_monthly: "Όριο εξόδων (€/μήνα)",
+  save_monthly: "Αποταμίευση (€/μήνα)",
+  tasks_weekly: "Ολοκληρωμένες εργασίες"
+};
 
 const DOW = ["Κυριακή", "Δευτέρα", "Τρίτη", "Τετάρτη", "Πέμπτη", "Παρασκευή", "Σάββατο"];
 
@@ -44,7 +59,41 @@ export async function render(view) {
     </div>
 
     <div class="settings-block">
+      <h3>${icons.user} Προφίλ</h3>
+      <div class="profile-row">
+        <span class="avatar avatar-lg" data-avatar></span>
+        <div class="profile-fields">
+          <div class="field" style="margin-bottom:8px">
+            <label for="fName">Πώς σε λένε</label>
+            <input type="text" id="fName" placeholder="π.χ. Θέμης" value="${escapeHtml(getName())}">
+          </div>
+          <div class="profile-actions">
+            <label class="btn btn-ghost btn-sm" for="avatarInput">${icons.image} Φωτογραφία
+              <input type="file" id="avatarInput" accept="image/*" hidden>
+            </label>
+            <button class="btn btn-ghost btn-sm" id="btnAvatarClear">${icons.x} Αφαίρεση</button>
+          </div>
+        </div>
+      </div>
+      <p class="hint">Ο χαιρετισμός στην αρχική αλλάζει ανάλογα με την ώρα.</p>
+
+      <div class="field" style="margin-top:14px">
+        <label for="fStart">Αρχική σελίδα</label>
+        <select id="fStart">
+          ${Object.entries(ROUTES).map(([v, l]) =>
+            `<option value="${v}" ${getStartRoute() === v ? "selected" : ""}>${l}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-block">
       <h3>${icons.image} Εμφάνιση</h3>
+      <p>Χρώμα τόνου:</p>
+      <div class="accents" id="accentRow">
+        ${Object.entries(ACCENTS).map(([k, a]) =>
+          `<button class="accent-dot ${getAccent() === k ? "active" : ""}" data-accent="${k}"
+            style="background:linear-gradient(135deg, ${a.c1}, ${a.c2})" title="${a.label}" aria-label="${a.label}"></button>`).join("")}
+      </div>
       <p>Θέμα και πυκνότητα λίστας. Το «σύστημα» ακολουθεί τη ρύθμιση της συσκευής.</p>
       <div class="seg" id="themeSeg" role="group" aria-label="Θέμα">
         ${[["system", "Σύστημα"], ["light", "Φωτεινό"], ["dark", "Σκούρο"]].map(([v, l]) =>
@@ -54,6 +103,27 @@ export async function render(view) {
         ${[["comfortable", "Άνετη"], ["compact", "Συμπαγής"]].map(([v, l]) =>
           `<button class="seg-btn" data-density="${v}">${l}</button>`).join("")}
       </div>
+    </div>
+
+    <div class="settings-block">
+      <h3>${icons.wallet} Γρήγορες ενέργειες</h3>
+      <p>Κουμπιά ενός πατήματος στα Οικονομικά — π.χ. «καφές 3€».</p>
+      <div class="mini-list" id="quickList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddQuick">${icons.plus} Νέα ενέργεια</button>
+    </div>
+
+    <div class="settings-block">
+      <h3>${icons.chart} Στόχοι</h3>
+      <p>Εμφανίζονται με μπάρα προόδου στην αρχική.</p>
+      <div class="mini-list" id="goalList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddGoal">${icons.plus} Νέος στόχος</button>
+    </div>
+
+    <div class="settings-block">
+      <h3>${icons.bookmark} Δικές μου κατηγορίες</h3>
+      <p>Προστίθενται στις προεπιλεγμένες, σε έξοδα και συνδρομές.</p>
+      <div class="mini-list" id="catList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddCat">${icons.plus} Νέα κατηγορία</button>
     </div>
 
     <div class="settings-block">
@@ -206,6 +276,152 @@ export async function render(view) {
     if (b) { setDensity(b.dataset.density); markSeg(); }
   });
   markSeg();
+
+
+  // ---- Προφίλ ----
+  const nameInput = view.querySelector("#fName");
+  let nameTimer = null;
+  nameInput.addEventListener("input", () => {
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(() => { setName(nameInput.value.trim()); paintAvatar(); }, 500);
+  });
+  view.querySelector("#avatarInput").addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try { await uploadAvatar(file); toast("Η φωτογραφία ενημερώθηκε"); }
+    catch (err) { toast(err.message || "Αποτυχία ανεβάσματος", "error"); }
+  });
+  view.querySelector("#btnAvatarClear").addEventListener("click", async () => {
+    await removeAvatar();
+    toast("Η φωτογραφία αφαιρέθηκε");
+  });
+  view.querySelector("#fStart").addEventListener("change", e => {
+    setStartRoute(e.target.value);
+    toast("Η αρχική σελίδα αποθηκεύτηκε");
+  });
+
+  // ---- Χρώμα τόνου ----
+  view.querySelector("#accentRow").addEventListener("click", e => {
+    const b = e.target.closest("[data-accent]");
+    if (!b) return;
+    setAccent(b.dataset.accent);
+    view.querySelectorAll("[data-accent]").forEach(x => x.classList.toggle("active", x === b));
+    haptic("tap");
+  });
+
+  // ---- Γρήγορες ενέργειες / στόχοι / κατηγορίες ----
+  const drawMini = () => {
+    const p = prefs();
+    view.querySelector("#quickList").innerHTML = (p.quick || []).length
+      ? p.quick.map(q => `<div class="mini-row">
+          <span><b>${escapeHtml(q.label)}</b>${q.amount != null ? ` · ${q.kind === "income" ? "+" : "−"}${fmt(q.amount)}` : ""}</span>
+          <button class="icon-btn" data-delquick="${q.id}" aria-label="Διαγραφή">${icons.trash}</button>
+        </div>`).join("")
+      : `<p class="hint">Καμία ακόμα.</p>`;
+
+    view.querySelector("#goalList").innerHTML = (p.goals || []).length
+      ? p.goals.map(g => `<div class="mini-row">
+          <span><b>${escapeHtml(g.label || GOAL_METRICS[g.metric])}</b> · ${g.metric === "tasks_weekly" ? g.target : fmt(g.target)}</span>
+          <button class="icon-btn" data-delgoal="${g.id}" aria-label="Διαγραφή">${icons.trash}</button>
+        </div>`).join("")
+      : `<p class="hint">Κανένας ακόμα.</p>`;
+
+    view.querySelector("#catList").innerHTML = (p.categories || []).length
+      ? p.categories.map(c => `<div class="mini-row">
+          <span><i class="cat-dot" style="background:${c.color}"></i><b>${escapeHtml(c.label)}</b> · ${
+            c.scope === "subscription" ? "συνδρομές" : c.scope === "income" ? "έσοδα" : "έξοδα"}</span>
+          <button class="icon-btn" data-delcat="${c.id}" aria-label="Διαγραφή">${icons.trash}</button>
+        </div>`).join("")
+      : `<p class="hint">Καμία ακόμα.</p>`;
+  };
+  drawMini();
+
+  const refresh = async () => { await loadPrefs(); drawMini(); };
+
+  view.querySelector("#btnAddQuick").addEventListener("click", () => {
+    openModal({
+      title: "Νέα γρήγορη ενέργεια",
+      body: `
+        <div class="field"><label for="qLabel">Ετικέτα</label>
+          <input type="text" id="qLabel" placeholder="π.χ. Καφές"></div>
+        <div class="row2">
+          <div class="field"><label for="qAmount">Ποσό (€)</label>
+            <input type="text" id="qAmount" inputmode="decimal" placeholder="3,00"></div>
+          <div class="field"><label for="qKind">Τύπος</label>
+            <select id="qKind"><option value="expense">Έξοδο</option><option value="income">Έσοδο</option></select></div>
+        </div>`,
+      onSave: async ov => {
+        const label = ov.querySelector("#qLabel").value.trim();
+        const amount = parseFloat(ov.querySelector("#qAmount").value.replace(",", "."));
+        if (!label || isNaN(amount)) { toast("Συμπλήρωσε ετικέτα και ποσό.", "error"); return false; }
+        await quickActions.insert({ label, amount, kind: ov.querySelector("#qKind").value, sort: (prefs().quick || []).length });
+        await refresh();
+        toast("Προστέθηκε");
+      }
+    });
+  });
+
+  view.querySelector("#btnAddGoal").addEventListener("click", () => {
+    openModal({
+      title: "Νέος στόχος",
+      body: `
+        <div class="field"><label for="gMetric">Τι μετράμε</label>
+          <select id="gMetric">${Object.entries(GOAL_METRICS).map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></div>
+        <div class="field"><label for="gTarget">Στόχος</label>
+          <input type="text" id="gTarget" inputmode="decimal" placeholder="π.χ. 40"></div>
+        <div class="field"><label for="gLabel">Ετικέτα (προαιρετικό)</label>
+          <input type="text" id="gLabel" placeholder="π.χ. Λιγότερες συνδρομές"></div>`,
+      onSave: async ov => {
+        const target = parseFloat(ov.querySelector("#gTarget").value.replace(",", "."));
+        if (isNaN(target) || target < 0) { toast("Συμπλήρωσε έγκυρο στόχο.", "error"); return false; }
+        await goals.insert({
+          metric: ov.querySelector("#gMetric").value, target,
+          label: ov.querySelector("#gLabel").value.trim() || null
+        });
+        await refresh();
+        toast("Ο στόχος προστέθηκε");
+      }
+    });
+  });
+
+  view.querySelector("#btnAddCat").addEventListener("click", () => {
+    openModal({
+      title: "Νέα κατηγορία",
+      body: `
+        <div class="field"><label for="cLabel">Όνομα</label>
+          <input type="text" id="cLabel" placeholder="π.χ. Ταξίδια"></div>
+        <div class="row2">
+          <div class="field"><label for="cScope">Πού</label>
+            <select id="cScope">
+              <option value="expense">Έξοδα</option>
+              <option value="income">Έσοδα</option>
+              <option value="subscription">Συνδρομές</option>
+            </select></div>
+          <div class="field"><label for="cColor">Χρώμα</label>
+            <input type="color" id="cColor" value="#7b8fd6"></div>
+        </div>`,
+      onSave: async ov => {
+        const label = ov.querySelector("#cLabel").value.trim();
+        if (!label) { toast("Συμπλήρωσε όνομα.", "error"); return false; }
+        const key = "u_" + label.toLowerCase().replace(/\s+/g, "_").slice(0, 20) + "_" + Math.random().toString(36).slice(2, 5);
+        await customCategories.insert({
+          scope: ov.querySelector("#cScope").value, key, label,
+          color: ov.querySelector("#cColor").value
+        });
+        await refresh();
+        toast("Η κατηγορία προστέθηκε");
+      }
+    });
+  });
+
+  view.addEventListener("click", async e => {
+    const q = e.target.closest("[data-delquick]");
+    const g = e.target.closest("[data-delgoal]");
+    const c = e.target.closest("[data-delcat]");
+    if (q) { await quickActions.remove(q.dataset.delquick); await refresh(); }
+    if (g) { await goals.remove(g.dataset.delgoal); await refresh(); }
+    if (c) { await customCategories.remove(c.dataset.delcat); await refresh(); }
+  });
 
   view.querySelectorAll("[data-copy]").forEach(btn =>
     btn.addEventListener("click", async () => {

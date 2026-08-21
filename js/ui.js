@@ -109,6 +109,21 @@ export const icons = {
   apple: svg('<path d="M12 20.94c1.5 0 2.75-.63 3.86-1.89 1.13-1.28 1.64-2.58 1.64-2.63-.03-.01-3.13-1.2-3.13-4.53 0-2.88 2.36-4.16 2.46-4.23-1.35-1.97-3.43-2.02-4-2.02-1.7 0-3.1 1.03-3.9 1.03-.83 0-2.1-1-3.46-.97-1.78.03-3.42 1.03-4.33 2.62-1.85 3.21-.47 7.95 1.33 10.55.88 1.27 1.93 2.7 3.3 2.65 1.32-.05 1.82-.86 3.42-.86 1.59 0 2.04.86 3.43.83Z"/><path d="M15.5 3.5c.73-.88 1.22-2.1 1.08-3.32-1.05.04-2.32.7-3.07 1.58-.68.78-1.27 2.03-1.11 3.22 1.17.09 2.36-.6 3.1-1.48Z"/>')
 };
 
+// Μαζεύει τη γραμμή σε ύψος πριν φύγει, ώστε η λίστα να μη «πηδάει»
+export function collapseRow(el) {
+  if (!el) return Promise.resolve();
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return Promise.resolve();
+  const h = el.getBoundingClientRect().height;
+  el.style.height = h + "px";
+  el.style.overflow = "hidden";
+  void el.offsetHeight;                       // εξαναγκασμός reflow
+  el.style.transition = "height var(--dur) var(--ease-out), opacity var(--dur-fast) var(--ease-out), margin var(--dur) var(--ease-out)";
+  el.style.height = "0px";
+  el.style.opacity = "0";
+  el.style.marginBottom = "-" + getComputedStyle(el.parentElement).gap;
+  return new Promise(res => setTimeout(res, 220));
+}
+
 // ---- Απτική ανάδραση ----
 // Υποστηρίζεται σε Android/Chrome. Σε iOS το Safari δεν έχει Vibration API,
 // οπότε η κλήση απλώς δεν κάνει τίποτα.
@@ -288,7 +303,32 @@ function bindSheetDrag(overlay, close) {
 }
 
 // ---- Modal ----
-export function openModal({ title, body, saveLabel = "Αποθήκευση", onSave, onOpen, danger = false }) {
+export function openModal(opts) {
+  // Αν υποστηρίζεται, η κάρτα προέλευσης μετασχηματίζεται στο φύλλο (View Transitions)
+  const from = opts.from;
+  if (from && document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    let result;
+    from.style.viewTransitionName = "sheet-morph";
+    const vt = document.startViewTransition(() => {
+      // Το όνομα πρέπει να ανήκει σε ένα μόνο στοιχείο κάθε στιγμή:
+      // το στιγμιότυπο της κάρτας έχει ήδη ληφθεί, οπότε το μεταφέρουμε στο φύλλο.
+      from.style.viewTransitionName = "";
+      result = buildModal(opts);
+      result.el.querySelector(".modal").style.viewTransitionName = "sheet-morph";
+    });
+    // Η μετάβαση μπορεί να ματαιωθεί (π.χ. κρυφή καρτέλα)· καθαρίζουμε και στις δύο περιπτώσεις
+    const cleanup = () => {
+      from.style.viewTransitionName = "";
+      const m = document.querySelector("#modalRoot .modal");
+      if (m) m.style.viewTransitionName = "";
+    };
+    vt.finished.then(cleanup, cleanup);
+    return { close: () => result?.close(), get el() { return result?.el; } };
+  }
+  return buildModal(opts);
+}
+
+function buildModal({ title, body, saveLabel = "Αποθήκευση", onSave, onOpen, danger = false }) {
   const root = document.getElementById("modalRoot");
   root.innerHTML = `
     <div class="overlay open">

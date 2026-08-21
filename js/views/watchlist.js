@@ -1,7 +1,7 @@
 import { watchlist } from "../db.js";
 import {
   escapeHtml, icons, toast, toastAction, openModal, confirmModal,
-  micButtonHtml, bindMicButtons, bindSwipe, haptic
+  micButtonHtml, bindMicButtons, bindSwipe, haptic, collapseRow
 } from "../ui.js";
 
 const KINDS = { movie: "Ταινία", series: "Σειρά", book: "Βιβλίο", game: "Παιχνίδι", other: "Άλλο" };
@@ -58,8 +58,9 @@ function formHtml(w) {
     </div>`;
 }
 
-function openForm(w, rerender) {
+function openForm(w, rerender, from) {
   openModal({
+    from,
     title: w ? "Επεξεργασία" : "Νέα καταχώριση",
     body: formHtml(w),
     onOpen: overlay => {
@@ -164,6 +165,7 @@ export async function render(view, { cached = false } = {}) {
     }
   }
   async function removeItem(w) {
+    await collapseRow(document.querySelector(`[data-swipe="${w.id}"]`)?.closest(".swipe-wrap"));
     await watchlist.remove(w.id);
     await rerender();
     toastAction("Διαγράφηκε", "Αναίρεση", async () => {
@@ -193,7 +195,7 @@ export async function render(view, { cached = false } = {}) {
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");
     if (nextBtn) await cycleStatus(items.find(x => x.id === nextBtn.dataset.next));
-    if (editBtn) openForm(items.find(x => x.id === editBtn.dataset.edit), rerender);
+    if (editBtn) openForm(items.find(x => x.id === editBtn.dataset.edit), rerender, editBtn.closest(".card"));
     if (delBtn) {
       const w = items.find(x => x.id === delBtn.dataset.del);
       confirmModal(`Διαγραφή «${w.title}»;`, () => removeItem(w));

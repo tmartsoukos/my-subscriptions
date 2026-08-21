@@ -3,7 +3,7 @@ import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, unpaidMembers,
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
-  colorPickerHtml, bindColorPicker, pickedColor, haptic
+  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow
 } from "../ui.js";
 import { logoFor } from "../logos.js";
 
@@ -160,8 +160,9 @@ function readForm(overlay) {
   };
 }
 
-function openForm(sub, rerender) {
+function openForm(sub, rerender, from) {
   openModal({
+    from,
     title: sub ? "Επεξεργασία συνδρομής" : "Νέα συνδρομή",
     body: formHtml(sub),
     onOpen: overlay => bindForm(overlay, sub),
@@ -280,10 +281,11 @@ export async function render(view) {
       await rerender();
       return;
     }
-    if (editBtn) openForm(items.find(s => s.id === editBtn.dataset.edit), rerender);
+    if (editBtn) openForm(items.find(s => s.id === editBtn.dataset.edit), rerender, editBtn.closest(".card"));
     if (delBtn) {
       const sub = items.find(s => s.id === delBtn.dataset.del);
       confirmModal(`Διαγραφή της συνδρομής «${sub.name}»;`, async () => {
+        await collapseRow(delBtn.closest(".card"));
         await subscriptions.remove(sub.id);
         toast("Η συνδρομή διαγράφηκε");
         await rerender();

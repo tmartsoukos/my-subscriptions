@@ -44,7 +44,7 @@ export function barChart(points) {
     return `<g>
       <title>${escapeHtml(p.label)}: ${fmt(p.value)}</title>
       <rect x="${x - 4}" y="${padT}" width="${barW + 8}" height="${plotH}" fill="transparent"/>
-      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#4c8dff"/>
+      <rect class="bar-rise" style="animation-delay:${i * 28}ms;transform-origin:${x + barW / 2}px ${padT + plotH}px" x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#4c8dff"/>
       ${i === maxIdx && p.value > 0 ? `<text x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${C.text}">${Math.round(p.value)}€</text>` : ""}
       <text x="${x + barW / 2}" y="${H - 8}" text-anchor="middle" font-size="10" fill="${C.muted}">${escapeHtml(p.label)}</text>
     </g>`;
@@ -63,14 +63,15 @@ export function donutChart(items, centerLabel) {
   const total = items.reduce((s, x) => s + x.value, 0);
   if (total <= 0) return "";
   let angle = -Math.PI / 2;
-  const segs = items.map(x => {
+  const segs = items.map((x, i) => {
     const frac = x.value / total;
     const a0 = angle, a1 = angle + frac * Math.PI * 2;
     angle = a1;
     const large = a1 - a0 > Math.PI ? 1 : 0;
     const p = (a, rr) => `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
     return `<path d="M ${p(a0, r)} A ${r} ${r} 0 ${large} 1 ${p(a1, r)} L ${p(a1, rIn)} A ${rIn} ${rIn} 0 ${large} 0 ${p(a0, rIn)} Z"
-      fill="${x.color}" stroke="${C.surface}" stroke-width="2">
+      fill="${x.color}" stroke="${C.surface}" stroke-width="2"
+      class="donut-seg" style="animation-delay:${i * 60}ms;transform-origin:${cx}px ${cy}px">
       <title>${escapeHtml(x.label)}: ${fmt(x.value)} (${Math.round(frac * 100)}%)</title>
     </path>`;
   }).join("");
@@ -81,7 +82,7 @@ export function donutChart(items, centerLabel) {
   return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <svg viewBox="0 0 ${size} ${size}" style="max-width:190px" role="img" aria-label="Κατανομή κόστους ανά κατηγορία">
       ${segs}
-      <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="17" font-weight="700" fill="${C.text}">${escapeHtml(centerLabel)}</text>
+      <text class="donut-label" x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="17" font-weight="700" fill="${C.text}">${escapeHtml(centerLabel)}</text>
       <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="${C.muted}">/ μήνα</text>
     </svg>
     <div class="legend" style="flex-direction:column;align-items:flex-start;gap:7px">${legend}</div>

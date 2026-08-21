@@ -1,7 +1,7 @@
 import { finance, subscriptions } from "../db.js";
 import {
   escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, today, icons, toast, toastAction,
-  openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml, bindMicButtons
+  openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml, bindMicButtons, collapseRow
 } from "../ui.js";
 import { barChart, donutChart } from "../charts.js";
 
@@ -77,9 +77,10 @@ function formHtml(e, kind) {
     </div>`;
 }
 
-function openForm(entry, kind, rerender) {
+function openForm(entry, kind, rerender, from) {
   const k = entry?.kind || kind;
   openModal({
+    from,
     title: entry ? "Επεξεργασία" : k === "income" ? "Νέο έσοδο" : "Νέο έξοδο",
     body: formHtml(entry, k),
     onOpen: overlay => bindMicButtons(overlay),
@@ -278,6 +279,7 @@ create policy "own finance" on public.finance_entries
   async function removeEntry(e) {
     haptic("warn");
     const backup = [...items];
+    await collapseRow(document.querySelector(`[data-swipe="${e.id}"]`)?.closest(".swipe-wrap"));
     items = items.filter(x => x.id !== e.id);   // αισιόδοξη ενημέρωση
     await rerender(true);
     try {
@@ -299,7 +301,7 @@ create policy "own finance" on public.finance_entries
   view.querySelectorAll("[data-swipe]").forEach(card => {
     const e = items.find(x => x.id === card.dataset.swipe);
     bindSwipe(card, {
-      onLeft: () => openForm(e, e.kind, rerender),
+      onLeft: () => openForm(e, e.kind, rerender, card),
       onRight: () => removeEntry(e)
     });
   });
@@ -309,7 +311,7 @@ create policy "own finance" on public.finance_entries
     const delBtn = ev.target.closest("[data-del]");
     if (editBtn) {
       const e = items.find(x => x.id === editBtn.dataset.edit);
-      openForm(e, e.kind, rerender);
+      openForm(e, e.kind, rerender, editBtn.closest(".card"));
     }
     if (delBtn) {
       const e = items.find(x => x.id === delBtn.dataset.del);

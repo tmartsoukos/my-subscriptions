@@ -797,3 +797,46 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
   padding: 12px; overflow-x: auto; font-family: Consolas, monospace; font-size: 12px;
   line-height: 1.5; color: var(--muted); white-space: pre;
 }
+
+/* ============ Σταδιακή εμφάνιση λιστών ============ */
+@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } }
+.list > *, .notes-grid > *, .stats > *, .more-list > * {
+  animation: riseIn var(--dur) var(--ease-out) both;
+}
+.list > *:nth-child(1), .notes-grid > *:nth-child(1), .stats > *:nth-child(1), .more-list > *:nth-child(1) { animation-delay: 0ms; }
+.list > *:nth-child(2), .notes-grid > *:nth-child(2), .stats > *:nth-child(2), .more-list > *:nth-child(2) { animation-delay: 35ms; }
+.list > *:nth-child(3), .notes-grid > *:nth-child(3), .stats > *:nth-child(3), .more-list > *:nth-child(3) { animation-delay: 70ms; }
+.list > *:nth-child(4), .notes-grid > *:nth-child(4), .stats > *:nth-child(4), .more-list > *:nth-child(4) { animation-delay: 105ms; }
+.list > *:nth-child(5), .notes-grid > *:nth-child(5), .stats > *:nth-child(5), .more-list > *:nth-child(5) { animation-delay: 140ms; }
+.list > *:nth-child(6), .notes-grid > *:nth-child(6), .stats > *:nth-child(6), .more-list > *:nth-child(6) { animation-delay: 175ms; }
+.list > *:nth-child(7), .notes-grid > *:nth-child(7), .stats > *:nth-child(7), .more-list > *:nth-child(7) { animation-delay: 210ms; }
+.list > *:nth-child(8), .notes-grid > *:nth-child(8), .stats > *:nth-child(8), .more-list > *:nth-child(8) { animation-delay: 245ms; }
+.list > *:nth-child(9), .notes-grid > *:nth-child(9), .stats > *:nth-child(9), .more-list > *:nth-child(9) { animation-delay: 280ms; }
+.list > *:nth-child(10), .notes-grid > *:nth-child(10), .stats > *:nth-child(10), .more-list > *:nth-child(10) { animation-delay: 315ms; }
+.list > *:nth-child(11), .notes-grid > *:nth-child(11), .stats > *:nth-child(11), .more-list > *:nth-child(11) { animation-delay: 350ms; }
+.list > *:nth-child(12), .notes-grid > *:nth-child(12), .stats > *:nth-child(12), .more-list > *:nth-child(12) { animation-delay: 385ms; }
+.list > *:nth-child(n+13), .notes-grid > *:nth-child(n+13),
+.stats > *:nth-child(n+13), .more-list > *:nth-child(n+13) { animation-delay: 420ms; }
+
+/* ============ Κίνηση γραφημάτων ============ */
+@keyframes barRise { from { transform: scaleY(0); } }
+@keyframes segIn { from { opacity: 0; transform: scale(.82); } }
+.bar-rise {
+  transform-box: view-box;   /* το origin δίνεται inline σε συντεταγμένες του γραφήματος */
+  animation: barRise var(--dur-slow) var(--ease-out) both;
+}
+.donut-seg {
+  transform-box: view-box;
+  animation: segIn var(--dur) var(--ease-out) both;
+}
+.donut-label { animation: riseIn var(--dur-slow) var(--ease-out) both; animation-delay: 260ms; }
+
+/* ============ Μετάβαση κάρτας σε φύλλο ============ */
+::view-transition-group(sheet-morph) { animation-duration: var(--dur-slow); }
+::view-transition-old(sheet-morph) { animation: none; opacity: 0; }
+::view-transition-new(sheet-morph) { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .list > *, .notes-grid > *, .stats > *, .more-list > *,
+  .bar-rise, .donut-seg, .donut-label { animation: none; }
+}

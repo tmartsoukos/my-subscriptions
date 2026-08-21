@@ -1,7 +1,7 @@
 import { todos, courses } from "../db.js";
 import {
   escapeHtml, isoLocal, daysUntil, fmtDateShort, icons, toast, toastAction,
-  openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons, haptic
+  openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons, haptic, collapseRow
 } from "../ui.js";
 import { parseGreekTask, speechSupported } from "../voice.js";
 import { refreshBadge } from "../badge.js";
@@ -47,8 +47,9 @@ function formHtml(t) {
     ${coursePickerHtml(t?.course_id)}`;
 }
 
-function openForm(t, rerender, { startListening = false } = {}) {
+function openForm(t, rerender, { startListening = false, from } = {}) {
   openModal({
+    from,
     title: t ? "Επεξεργασία εργασίας" : "Νέα εργασία",
     body: formHtml(t),
     onOpen: async overlay => {
@@ -148,6 +149,7 @@ export async function render(view, { cached = false } = {}) {
   }
   async function removeTodo(t) {
     const backup = [...items];
+    await collapseRow(document.querySelector(`[data-swipe="${t.id}"]`)?.closest(".swipe-wrap"));
     items = items.filter(x => x.id !== t.id);   // αισιόδοξη αφαίρεση
     await rerender(true);
     try {
@@ -189,7 +191,7 @@ export async function render(view, { cached = false } = {}) {
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");
     if (toggleBtn) await toggleDone(items.find(x => x.id === toggleBtn.dataset.toggle));
-    if (editBtn) openForm(items.find(x => x.id === editBtn.dataset.edit), rerender);
+    if (editBtn) openForm(items.find(x => x.id === editBtn.dataset.edit), rerender, { from: editBtn.closest(".card") });
     if (delBtn) {
       const t = items.find(x => x.id === delBtn.dataset.del);
       confirmModal(`Διαγραφή της εργασίας «${t.title}»;`, () => removeTodo(t));

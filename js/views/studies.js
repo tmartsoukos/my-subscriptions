@@ -3,6 +3,7 @@ import {
   escapeHtml, icons, toast, toastAction, openModal, confirmModal,
   fmtDateShort, isoLocal, daysUntil, today, colorPickerHtml, bindColorPicker, pickedColor
 } from "../ui.js";
+import { prefs, pins } from "../prefs.js";
 
 const STATUS = { active: "Τρέχον", passed: "Περασμένο", failed: "Κόπηκα", planned: "Μελλοντικό" };
 let items = [], allTodos = [], allEvents = [];
@@ -124,6 +125,8 @@ function courseHtml(c) {
       ${c.grade != null ? `<div class="price">${String(c.grade).replace(".", ",")}</div><div class="cycle">βαθμός</div>` : ""}
     </div>
     <div class="card-actions">
+      <button class="icon-btn ${(prefs().pins || []).some(p => p.kind === "course" && p.ref_id === c.id) ? "pinned" : ""}"
+        data-pin="${c.id}" aria-label="Καρφίτσωμα στην αρχική">${icons.bookmark}</button>
       <button class="icon-btn" data-edit="${c.id}" aria-label="Επεξεργασία">${icons.edit}</button>
       <button class="icon-btn" data-del="${c.id}" aria-label="Διαγραφή">${icons.trash}</button>
     </div>
@@ -177,6 +180,21 @@ export async function render(view) {
     b.addEventListener("click", () => { filter = b.dataset.filter; rerender(); }));
 
   view.onclick = async e => {
+    const pinBtn = e.target.closest("[data-pin]");
+    if (pinBtn) {
+      const id = pinBtn.dataset.pin;
+      const existing = (prefs().pins || []).find(p => p.kind === "course" && p.ref_id === id);
+      try {
+        if (existing) { await pins.remove(existing.id); prefs().pins = prefs().pins.filter(p => p.id !== existing.id); }
+        else {
+          const created = await pins.insert({ kind: "course", ref_id: id, sort: (prefs().pins || []).length });
+          prefs().pins = [...(prefs().pins || []), created];
+        }
+        pinBtn.classList.toggle("pinned");
+        toast(existing ? "Ξεκαρφιτσώθηκε" : "Καρφιτσώθηκε στην αρχική");
+      } catch { toast("Δεν αποθηκεύτηκε", "error"); }
+      return;
+    }
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");
     if (editBtn) openForm(items.find(c => c.id === editBtn.dataset.edit), rerender);

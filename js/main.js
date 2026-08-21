@@ -2,7 +2,7 @@ import "./theme.js";
 import { getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData } from "./db.js";
 import { icons, toast } from "./ui.js";
 import { refreshBadge } from "./badge.js";
-import { loadPrefs, getStartRoute } from "./prefs.js";
+import { loadPrefs, getStartRoute, paintTabs } from "./prefs.js";
 import { initScrollTop } from "./scrolltop.js";
 import * as router from "./router.js";
 import * as dashboard from "./views/dashboard.js";
@@ -31,6 +31,7 @@ router.register("settings", settingsView.render);
 
 // Εικονίδια πλοήγησης
 const eye = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+window.__icons = icons;   // τα χρειάζεται η δυναμική κάτω μπάρα
 document.querySelectorAll(".nav-ico").forEach(el => { el.innerHTML = icons[el.dataset.ico] || ""; });
 document.getElementById("togglePass").innerHTML = eye;
 
@@ -49,6 +50,7 @@ async function showApp() {
   if (!appStarted) {
     appStarted = true;
     await loadPrefs();
+    paintTabs(icons);
     if (!location.hash) location.hash = "#/" + getStartRoute();
     router.start();
     initScrollTop();

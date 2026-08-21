@@ -15,7 +15,35 @@ const ACCENT_KEY = "pref:accent";
 const START_KEY = "pref:start";
 const NAME_KEY = "pref:name";
 
+// Ενότητες: ετικέτα και εικονίδιο σε ένα σημείο
+export const SECTIONS = {
+  dashboard: { label: "Αρχική", icon: "home" },
+  finance:   { label: "Οικονομικά", icon: "wallet" },
+  subs:      { label: "Συνδρομές", icon: "card" },
+  todos:     { label: "Εργασίες", icon: "check" },
+  calendar:  { label: "Ημ/γιο", icon: "calendar" },
+  notes:     { label: "Σημειώσεις", icon: "note" },
+  studies:   { label: "Σπουδές", icon: "book" },
+  health:    { label: "Υγεία", icon: "heart" },
+  watchlist: { label: "Λίστα", icon: "bookmark" },
+  more:      { label: "Περισσότερα", icon: "dots" }
+};
+export const DEFAULT_TABS = ["dashboard", "finance", "todos", "calendar", "more"];
+
+// Κάρτες της αρχικής, με τη σειρά που εμφανίζονται εξ ορισμού
+export const DASH_CARDS = {
+  pins:      "Καρφιτσωμένα",
+  stats:     "Στατιστικά",
+  goals:     "Στόχοι",
+  charts:    "Γραφήματα συνδρομών",
+  upcoming:  "Επερχόμενες πληρωμές",
+  attention: "Θέλουν προσοχή",
+  debts:     "Μου χρωστάνε"
+};
+export const DEFAULT_LAYOUT = Object.keys(DASH_CARDS).map(id => ({ id, on: true }));
+
 export const customCategories = store("custom_categories", "created_at");
+export const pins = store("pins", "sort");
 export const quickActions = store("quick_actions", "sort");
 export const goals = store("goals", "created_at");
 
@@ -24,9 +52,47 @@ let state = {
   categories: [],
   quick: [],
   goals: [],
+  pins: [],
   avatarUrl: null,
   loaded: false
 };
+
+const TABS_KEY = "pref:tabs";
+const LAYOUT_KEY = "pref:layout";
+
+// ---- Κάτω μπάρα ----
+export function getTabs() {
+  try {
+    const t = JSON.parse(localStorage.getItem(TABS_KEY));
+    if (Array.isArray(t) && t.length) return t.filter(x => SECTIONS[x]);
+  } catch { /* πέφτουμε στις προεπιλογές */ }
+  return DEFAULT_TABS;
+}
+export function setTabs(tabs) {
+  localStorage.setItem(TABS_KEY, JSON.stringify(tabs));
+  saveProfile({ tabs });
+  paintTabs();
+}
+
+// ---- Διάταξη αρχικής ----
+export function getLayout() {
+  try {
+    const l = JSON.parse(localStorage.getItem(LAYOUT_KEY));
+    if (Array.isArray(l) && l.length) {
+      const known = l.filter(x => DASH_CARDS[x.id]);
+      // Νέες κάρτες που δεν υπάρχουν στην αποθηκευμένη διάταξη μπαίνουν στο τέλος
+      for (const id of Object.keys(DASH_CARDS)) {
+        if (!known.some(x => x.id === id)) known.push({ id, on: true });
+      }
+      return known;
+    }
+  } catch { /* προεπιλογή */ }
+  return DEFAULT_LAYOUT;
+}
+export function setLayout(layout) {
+  localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+  saveProfile({ dash_layout: layout });
+}
 
 export const prefs = () => state;
 
@@ -103,6 +169,19 @@ export function initials() {
   return ((parts[0][0] || "") + (parts[1]?.[0] || "")).toUpperCase();
 }
 
+// Σχεδιάζει την κάτω μπάρα από τις επιλογές του χρήστη
+export function paintTabs(iconsMap) {
+  const bar = document.querySelector(".tabbar");
+  if (!bar) return;
+  const icons = iconsMap || window.__icons || {};
+  bar.innerHTML = getTabs().map(id => {
+    const sec = SECTIONS[id];
+    return `<a href="#/${id}" data-route="${id}">
+      <span class="nav-ico">${icons[sec.icon] || ""}</span><span>${sec.label}</span>
+    </a>`;
+  }).join("");
+}
+
 // Ζωγραφίζει avatar και όνομα στο κέλυφος (πλαϊνό μενού + μπάρα κινητού)
 export function paintAvatar() {
   document.querySelectorAll("[data-avatar]").forEach(el => {
@@ -118,19 +197,24 @@ export function paintAvatar() {
 // ---- Φόρτωση όλων ----
 export async function loadPrefs() {
   try {
-    const [{ data: profile }, cats, quick, gs] = await Promise.all([
+    const [{ data: profile }, cats, quick, gs, pn] = await Promise.all([
       sb.from("profile").select("*").maybeSingle(),
       customCategories.list().catch(() => []),
       quickActions.list().catch(() => []),
-      goals.list().catch(() => [])
+      goals.list().catch(() => []),
+      pins.list().catch(() => [])
     ]);
-    state = { profile, categories: cats, quick, goals: gs, avatarUrl: null, loaded: true };
+    state = { profile, categories: cats, quick, goals: gs, pins: pn, avatarUrl: null, loaded: true };
 
     if (profile) {
       // Ο server είναι η πηγή αλήθειας όταν υπάρχει εγγραφή
       if (profile.display_name != null) localStorage.setItem(NAME_KEY, profile.display_name);
       if (profile.accent) localStorage.setItem(ACCENT_KEY, profile.accent);
       if (profile.start_route) localStorage.setItem(START_KEY, profile.start_route);
+      if (Array.isArray(profile.tabs) && profile.tabs.length) localStorage.setItem(TABS_KEY, JSON.stringify(profile.tabs));
+      if (Array.isArray(profile.dash_layout) && profile.dash_layout.length) {
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify(profile.dash_layout));
+      }
       if (profile.avatar_path) {
         try { state.avatarUrl = await signedImageUrl(profile.avatar_path); } catch { /* χωρίς εικόνα */ }
       }
@@ -140,6 +224,7 @@ export async function loadPrefs() {
   }
   applyAccent();
   paintAvatar();
+  paintTabs();
   return state;
 }
 

@@ -5,7 +5,8 @@ import {
 } from "../ui.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
 import { logoFor } from "../logos.js";
-import { greeting, prefs } from "../prefs.js";
+import { greeting, prefs, getLayout, pins as pinStore } from "../prefs.js";
+import { notes, courses } from "../db.js";
 
 const GOAL_LABELS = {
   subs_monthly: "Όριο συνδρομών",
@@ -39,8 +40,11 @@ function monthlyProjection(subs) {
 }
 
 export async function render(view) {
-  const [subs, todoItems, evItems, finItems] = await Promise.all([
-    subscriptions.list(), todos.list(), events.list(), finance.list().catch(() => [])
+  const pinList = prefs().pins || [];
+  const [subs, todoItems, evItems, finItems, noteItems, courseItems] = await Promise.all([
+    subscriptions.list(), todos.list(), events.list(), finance.list().catch(() => []),
+    pinList.some(p => p.kind === "note") ? notes.list().catch(() => []) : [],
+    pinList.some(p => p.kind === "course") ? courses.list().catch(() => []) : []
   ]);
 
   // Οικονομικά τρέχοντος μήνα (αν υπάρχουν εγγραφές)
@@ -102,22 +106,41 @@ export async function render(view) {
     return { g, pct, good, isCap, current, target, unit, fmtVal };
   });
 
-  view.innerHTML = `
-    <div class="page-head"><h1>${escapeHtml(greeting())}</h1></div>
+  // Καρφιτσωμένα: ό,τι έχεις σημαδέψει, με σύνδεσμο στη σελίδα του
+  const pinned = pinList.map(p => {
+    if (p.kind === "subscription") {
+      const x = subs.find(s => s.id === p.ref_id);
+      return x && { icon: logoFor(x), color: x.color, title: x.name,
+        meta: `${fmt(myShare(x))} · ${fmtDateShort(nextDue(x))}`, href: "#/subs" };
+    }
+    if (p.kind === "note") {
+      const x = noteItems.find(n => n.id === p.ref_id);
+      return x && { icon: icons.note, color: x.color, title: x.title?.trim() || "Σημείωση",
+        meta: (x.content || "").replace(/\s+/g, " ").slice(0, 60), href: `#/notes/${x.id}` };
+    }
+    if (p.kind === "course") {
+      const x = courseItems.find(c => c.id === p.ref_id);
+      return x && { icon: icons.book, color: x.color, title: x.name,
+        meta: [x.code, x.ects ? `${x.ects} ECTS` : ""].filter(Boolean).join(" · "), href: "#/studies" };
+    }
+    return null;
+  }).filter(Boolean);
 
-    ${endingTrials.length ? `<div class="alert-trial">
-      ${icons.bell}
-      <div>
-        <strong>Δωρεάν δοκιμή λήγει σύντομα</strong>
-        <ul>${endingTrials.map(s => {
-          const days = trialDaysLeft(s);
-          const when = days === 0 ? "σήμερα" : days === 1 ? "αύριο" : `σε ${days} ημέρες`;
-          return `<li><b>${escapeHtml(s.name)}</b> — ${when}, μετά ${fmt(myShare(s))} ανά ${s.cycle === "yearly" ? "έτος" : s.cycle === "weekly" ? "εβδομάδα" : "μήνα"}. Ακύρωσε αν δεν το θες.</li>`;
-        }).join("")}</ul>
-      </div>
-    </div>` : ""}
+  const pinsBlock = pinned.length ? `<div class="chart-card pins-card">
+    <h3>${icons.bookmark} Καρφιτσωμένα</h3>
+    <div class="list">
+      ${pinned.map(x => `<a class="card" href="${x.href}" style="padding:10px 14px">
+        <div class="logo logo-sm" style="--logo:${x.color};background:${x.color}">${x.icon}</div>
+        <div class="card-main">
+          <div class="name">${escapeHtml(x.title)}</div>
+          <div class="meta">${escapeHtml(x.meta || "")}</div>
+        </div>
+      </a>`).join("")}
+    </div>
+  </div>` : "";
 
-    <div class="stats">
+  const blocks = {
+    stats: `<div class="stats">
       <div class="stat"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
       <div class="stat"><div class="label">Επόμενη πληρωμή</div><div class="value" style="font-size:16px">${next ? escapeHtml(next.name) + " · " + fmtDateShort(nextDue(next)) : "—"}</div></div>
       <div class="stat"><div class="label">Εκκρεμείς εργασίες</div><div class="value">${pendingTodos.length}</div></div>
@@ -126,9 +149,8 @@ export async function render(view) {
       ${trials.length ? `<div class="stat"><div class="label">Σε δοκιμή</div><div class="value">${trials.length}</div></div>` : ""}
       ${finItems.length ? `<div class="stat"><div class="label">Υπόλοιπο μήνα</div>
         <div class="value ${monthIn - monthOut - monthly >= 0 ? "amount-in" : "amount-out"}">${fmt(monthIn - monthOut - monthly)}</div></div>` : ""}
-    </div>
-
-    ${goalRows.length ? `<div class="chart-card goals-card">
+    </div>`,
+    goals: `${goalRows.length ? `<div class="chart-card goals-card">
       <h3>Στόχοι</h3>
       ${goalRows.map(({ g, pct, good, isCap, current, target, fmtVal }) => `
         <div class="goal">
@@ -141,9 +163,8 @@ export async function render(view) {
             ? (good ? `Μένεις εντός ορίου` : `Ξεπέρασες το όριο κατά ${fmtVal(current - target)}`)
             : (good ? `Το έπιασες` : `Λείπουν ${fmtVal(target - current)}`)}</div>
         </div>`).join("")}
-    </div>` : ""}
-
-    ${subs.length ? `<div class="charts">
+    </div>` : ""}`,
+    charts: `${subs.length ? `<div class="charts">
       <div class="chart-card">
         <h3>Προβλεπόμενες χρεώσεις — επόμενο 12μηνο</h3>
         ${barChart(monthlyProjection(subs))}
@@ -152,10 +173,8 @@ export async function render(view) {
         <h3>Κατανομή ανά κατηγορία</h3>
         ${donutChart(donutItems, Math.round(monthly) + "€")}
       </div>
-    </div>` : ""}
-
-    <div class="charts" style="margin-top:4px">
-      <div class="chart-card">
+    </div>` : ""}`,
+    upcoming: `<div class="charts"><div class="chart-card">
         <h3>Επερχόμενες πληρωμές (30 ημέρες)</h3>
         ${upcoming.length ? `<div class="list">${upcoming.map(s => {
           const d = nextDue(s), days = daysUntil(d);
@@ -172,7 +191,8 @@ export async function render(view) {
         }).join("")}</div>` : `<p style="color:var(--muted);font-size:13.5px">Καμία πληρωμή το επόμενο 30ήμερο.</p>`}
         <a href="#/subs" class="btn btn-ghost" style="margin-top:12px">Όλες οι συνδρομές</a>
       </div>
-      <div class="chart-card">
+      <div class="chart-card"></div>`,
+    attention: `<div class="charts"><div class="chart-card">
         <h3>Θέλουν προσοχή</h3>
         ${weekEvents.length || urgentTodos.length ? `<div class="list">
           ${weekEvents.slice(0, 3).map(e => `
@@ -192,9 +212,8 @@ export async function render(view) {
           <a href="#/calendar" class="btn btn-ghost">Ημερολόγιο</a>
         </div>
       </div>
-    </div>
-
-    ${debtList.length ? `<div class="chart-card" style="margin-top:12px">
+    </div></div>`,
+    debts: `${debtList.length ? `<div class="chart-card" style="margin-top:12px">
       <h3>Μου χρωστάνε · σύνολο ${fmt(owedTotal)}</h3>
       <div class="list">
         ${debtList.map(([name, amount]) => {
@@ -210,5 +229,23 @@ export async function render(view) {
         }).join("")}
       </div>
       <p class="hint" style="margin-top:10px">Σημείωσε ποιος πλήρωσε από τη σελίδα «Συνδρομές», πατώντας το όνομά του.</p>
-    </div>` : ""}`;
+    </div>` : ""}`,
+    pins: pinsBlock
+  };
+
+  view.innerHTML = `<div class="page-head"><h1>${escapeHtml(greeting())}</h1></div>
+    ${endingTrials.length ? `<div class="alert-trial">
+      ${icons.bell}
+      <div>
+        <strong>Δωρεάν δοκιμή λήγει σύντομα</strong>
+        <ul>${endingTrials.map(s => {
+          const days = trialDaysLeft(s);
+          const when = days === 0 ? "σήμερα" : days === 1 ? "αύριο" : `σε ${days} ημέρες`;
+          return `<li><b>${escapeHtml(s.name)}</b> — ${when}, μετά ${fmt(myShare(s))} ανά ${s.cycle === "yearly" ? "έτος" : s.cycle === "weekly" ? "εβδομάδα" : "μήνα"}. Ακύρωσε αν δεν το θες.</li>`;
+        }).join("")}</ul>
+      </div>
+    </div>` : ""}
+    ${getLayout().filter(x => x.on).map(x => blocks[x.id] || "").join("")}
+  `;
 }
+

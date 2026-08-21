@@ -6,9 +6,11 @@ import {
   colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow
 } from "../ui.js";
 import { logoFor } from "../logos.js";
-import { mergedCategories } from "../prefs.js";
+import { mergedCategories, prefs, pins } from "../prefs.js";
 
 let items = [];
+
+const isPinned = id => (prefs().pins || []).some(p => p.kind === "subscription" && p.ref_id === id);
 
 function formHtml(sub) {
   const trial = sub ? isInTrial(sub) : false;
@@ -229,6 +231,8 @@ function cardHtml(s) {
       <div class="due ${dueClass}">${dueText}</div>
     </div>
     <div class="card-actions">
+      <button class="icon-btn ${isPinned(s.id) ? "pinned" : ""}" data-pin="${s.id}"
+        aria-label="${isPinned(s.id) ? "Ξεκαρφίτσωμα" : "Καρφίτσωμα στην αρχική"}">${icons.bookmark}</button>
       ${s.cancel_url ? `<a class="icon-btn" href="${escapeHtml(s.cancel_url)}" target="_blank" rel="noopener noreferrer"
         title="Ακύρωση συνδρομής" aria-label="Άνοιγμα σελίδας ακύρωσης για ${escapeHtml(s.name)}">${icons.external}</a>` : ""}
       <button class="icon-btn" data-edit="${s.id}" aria-label="Επεξεργασία ${escapeHtml(s.name)}">${icons.edit}</button>
@@ -267,6 +271,23 @@ export async function render(view) {
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
   // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders
   view.onclick = async e => {
+    const pinBtn = e.target.closest("[data-pin]");
+    if (pinBtn) {
+      const id = pinBtn.dataset.pin;
+      haptic("tap");
+      try {
+        const existing = (prefs().pins || []).find(p => p.kind === "subscription" && p.ref_id === id);
+        if (existing) { await pins.remove(existing.id); prefs().pins = prefs().pins.filter(p => p.id !== existing.id); }
+        else {
+          const created = await pins.insert({ kind: "subscription", ref_id: id, sort: (prefs().pins || []).length });
+          prefs().pins = [...(prefs().pins || []), created];
+        }
+        pinBtn.classList.toggle("pinned");
+        toast(existing ? "Ξεκαρφιτσώθηκε" : "Καρφιτσώθηκε στην αρχική");
+      } catch { toast("Δεν αποθηκεύτηκε", "error"); }
+      return;
+    }
+
     const paidBtn = e.target.closest("[data-paid]");
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");

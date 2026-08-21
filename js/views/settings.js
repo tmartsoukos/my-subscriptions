@@ -5,7 +5,8 @@ import { pushSupported, isIOS, isStandalone, currentSubscription, enablePush, di
 import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
 import {
   ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
-  uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories
+  uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories,
+  SECTIONS, getTabs, setTabs, DASH_CARDS, getLayout, setLayout, pins
 } from "../prefs.js";
 
 const ROUTES = {
@@ -103,6 +104,24 @@ export async function render(view) {
         ${[["comfortable", "Άνετη"], ["compact", "Συμπαγής"]].map(([v, l]) =>
           `<button class="seg-btn" data-density="${v}">${l}</button>`).join("")}
       </div>
+    </div>
+
+    <div class="settings-block">
+      <h3>${icons.dots} Κάτω μπάρα</h3>
+      <p>Διάλεξε έως πέντε ενότητες για το κινητό. Οι υπόλοιπες πάνε στο «Περισσότερα».</p>
+      <div class="pick-grid" id="tabsPicker">
+        ${Object.entries(SECTIONS).map(([id, sec]) =>
+          `<button class="pick ${getTabs().includes(id) ? "on" : ""}" data-tab="${id}">
+            <span class="pick-ico">${icons[sec.icon]}</span>${sec.label}
+          </button>`).join("")}
+      </div>
+      <p class="hint" id="tabsHint"></p>
+    </div>
+
+    <div class="settings-block">
+      <h3>${icons.home} Διάταξη αρχικής</h3>
+      <p>Ποιες κάρτες βλέπεις και με ποια σειρά.</p>
+      <div class="mini-list" id="layoutList"></div>
     </div>
 
     <div class="settings-block">
@@ -307,6 +326,70 @@ export async function render(view) {
     setAccent(b.dataset.accent);
     view.querySelectorAll("[data-accent]").forEach(x => x.classList.toggle("active", x === b));
     haptic("tap");
+  });
+
+
+  // ---- Κάτω μπάρα ----
+  const tabsHint = view.querySelector("#tabsHint");
+  const updateTabsHint = () => {
+    const n = getTabs().length;
+    tabsHint.textContent = `${n} από 5 επιλεγμένες${n < 2 ? " — διάλεξε τουλάχιστον δύο" : ""}`;
+  };
+  updateTabsHint();
+  view.querySelector("#tabsPicker").addEventListener("click", e => {
+    const b = e.target.closest("[data-tab]");
+    if (!b) return;
+    const id = b.dataset.tab;
+    let tabs = [...getTabs()];
+    if (tabs.includes(id)) {
+      if (tabs.length <= 2) { toast("Χρειάζονται τουλάχιστον δύο.", "error"); return; }
+      tabs = tabs.filter(x => x !== id);
+    } else {
+      if (tabs.length >= 5) { toast("Μέχρι πέντε — βγάλε πρώτα κάποια.", "error"); return; }
+      tabs.push(id);
+    }
+    setTabs(tabs);
+    b.classList.toggle("on");
+    updateTabsHint();
+    haptic("tap");
+  });
+
+  // ---- Διάταξη αρχικής ----
+  const drawLayout = () => {
+    const layout = getLayout();
+    view.querySelector("#layoutList").innerHTML = layout.map((x, i) => `
+      <div class="mini-row layout-row ${x.on ? "" : "off"}">
+        <label class="layout-label">
+          <input type="checkbox" data-card="${x.id}" ${x.on ? "checked" : ""}>
+          <span>${DASH_CARDS[x.id]}</span>
+        </label>
+        <span class="layout-actions">
+          <button class="icon-btn" data-up="${i}" ${i === 0 ? "disabled" : ""} aria-label="Πάνω">${icons.chevronL}</button>
+          <button class="icon-btn" data-down="${i}" ${i === layout.length - 1 ? "disabled" : ""} aria-label="Κάτω">${icons.chevronR}</button>
+        </span>
+      </div>`).join("");
+  };
+  drawLayout();
+
+  view.querySelector("#layoutList").addEventListener("click", e => {
+    const up = e.target.closest("[data-up]");
+    const down = e.target.closest("[data-down]");
+    if (!up && !down) return;
+    const layout = getLayout();
+    const i = Number((up || down).dataset.up ?? (up || down).dataset.down);
+    const j = up ? i - 1 : i + 1;
+    if (j < 0 || j >= layout.length) return;
+    [layout[i], layout[j]] = [layout[j], layout[i]];
+    setLayout(layout);
+    drawLayout();
+    haptic("tap");
+  });
+  view.querySelector("#layoutList").addEventListener("change", e => {
+    const box = e.target.closest("[data-card]");
+    if (!box) return;
+    const layout = getLayout().map(x => x.id === box.dataset.card ? { ...x, on: box.checked } : x);
+    setLayout(layout);
+    drawLayout();
   });
 
   // ---- Γρήγορες ενέργειες / στόχοι / κατηγορίες ----

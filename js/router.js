@@ -1,5 +1,6 @@
 // Απλός hash router: #/dashboard, #/subs, ...
 import { skeletonFor } from "./skeleton.js";
+import { getTabs } from "./prefs.js";
 
 const routes = {};
 let defaultRoute = "dashboard";
@@ -27,8 +28,10 @@ export function param() {
 export async function render() {
   const name = routes[current()] ? current() : defaultRoute;
   const view = document.getElementById("view");
-  // Στο κινητό οι σελίδες Σημειώσεις/Λίστα/Ρυθμίσεις ζουν κάτω από το tab «Περισσότερα»
-  const UNDER_MORE = ["notes", "watchlist", "studies", "health", "subs", "settings", "more"];
+  // Ό,τι δεν υπάρχει στην κάτω μπάρα ζει κάτω από το tab «Περισσότερα»
+  const tabs = getTabs();
+  const UNDER_MORE = ["dashboard", "finance", "subs", "todos", "calendar", "notes",
+    "studies", "health", "watchlist", "settings", "more"].filter(r => !tabs.includes(r));
   document.querySelectorAll("[data-route]").forEach(a => {
     const active = a.dataset.route === name ||
       (a.dataset.route === "more" && UNDER_MORE.includes(name));

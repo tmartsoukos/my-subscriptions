@@ -2,6 +2,7 @@ import { notes, uploadNoteImage, signedImageUrl } from "../db.js";
 import { escapeHtml, icons, toast, toastAction, confirmModal, micButtonHtml, bindMicButtons } from "../ui.js";
 import { renderMarkdown, plainPreview } from "../markdown.js";
 import { param } from "../router.js";
+import { prefs, pins } from "../prefs.js";
 
 const NOTE_COLORS = ["#f5d76e", "#f5b06e", "#8ed99a", "#8ec9f5", "#d99ee8", "#f0f0f0"];
 let items = [];
@@ -79,7 +80,9 @@ async function renderEditor(view, id) {
       <div class="note-bar">
         <a href="#/notes" class="icon-btn" aria-label="Πίσω">${icons.chevronL}</a>
         <div class="note-bar-actions">
-          <button class="icon-btn ${n.pinned ? "active" : ""}" id="btnPin" aria-label="Καρφίτσωμα">${icons.bookmark}</button>
+          <button class="icon-btn ${n.pinned ? "active" : ""}" id="btnPin" aria-label="Καρφίτσωμα στη λίστα">${icons.bookmark}</button>
+          <button class="icon-btn ${(prefs().pins || []).some(p => p.kind === "note" && p.ref_id === n.id) ? "pinned" : ""}"
+            id="btnPinHome" aria-label="Καρφίτσωμα στην αρχική">${icons.home}</button>
           <button class="icon-btn" id="btnPreview" aria-label="Προεπισκόπηση">${icons.check}</button>
           <label class="icon-btn" for="imgInput" aria-label="Εισαγωγή εικόνας">${icons.image}
             <input type="file" id="imgInput" accept="image/*" hidden>
@@ -148,6 +151,20 @@ async function renderEditor(view, id) {
     e.currentTarget.classList.toggle("active", n.pinned);
     await notes.update(n.id, { pinned: n.pinned });
     toast(n.pinned ? "Καρφιτσώθηκε" : "Ξεκαρφιτσώθηκε");
+  });
+
+  // Καρφίτσωμα στην αρχική
+  view.querySelector("#btnPinHome").addEventListener("click", async e => {
+    const existing = (prefs().pins || []).find(p => p.kind === "note" && p.ref_id === n.id);
+    try {
+      if (existing) { await pins.remove(existing.id); prefs().pins = prefs().pins.filter(p => p.id !== existing.id); }
+      else {
+        const created = await pins.insert({ kind: "note", ref_id: n.id, sort: (prefs().pins || []).length });
+        prefs().pins = [...(prefs().pins || []), created];
+      }
+      e.currentTarget.classList.toggle("pinned");
+      toast(existing ? "Ξεκαρφιτσώθηκε από την αρχική" : "Καρφιτσώθηκε στην αρχική");
+    } catch { toast("Δεν αποθηκεύτηκε", "error"); }
   });
 
   // Προεπισκόπηση

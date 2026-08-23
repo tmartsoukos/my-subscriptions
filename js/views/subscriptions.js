@@ -3,7 +3,7 @@ import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, unpaidMembers,
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
-  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills
+  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills, sendReminder
 } from "../ui.js";
 import { logoFor } from "../logos.js";
 import { mergedCategories, prefs, pins } from "../prefs.js";
@@ -180,6 +180,35 @@ function openForm(sub, rerender, from) {
   });
 }
 
+// Διαλέγεις ποιον θα ειδοποιήσεις· το μήνυμα ανοίγει στο φύλλο κοινοποίησης
+// και το στέλνεις εσύ — η εφαρμογή δεν στέλνει τίποτα μόνη της.
+function openRemind(sub, from) {
+  const unpaid = unpaidMembers(sub);
+  const when = fmtDate(nextDue(sub));
+  openModal({
+    from,
+    title: `Υπενθύμιση — ${sub.name}`,
+    closeLabel: "Κλείσιμο",
+    body: `<p class="confirm-text">Δεν έχουν πληρώσει για τη χρέωση της ${when}.</p>
+      <div class="drill-list">
+        ${unpaid.map((m, i) => `<div class="drill-row">
+          <div class="drill-main">
+            <div class="drill-label">${escapeHtml(m.name)}</div>
+            <div class="drill-meta">μερίδιο ${fmt(myShare(sub))}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" data-send="${i}">${icons.share} Μήνυμα</button>
+        </div>`).join("")}
+      </div>`,
+    onOpen: overlay => {
+      overlay.addEventListener("click", async e => {
+        const b = e.target.closest("[data-send]");
+        if (!b) return;
+        await sendReminder([{ name: sub.name, amount: myShare(sub), date: when }], unpaid[+b.dataset.send]?.name);
+      });
+    }
+  });
+}
+
 function cardHtml(s) {
   const d = nextDue(s);
   const days = daysUntil(d);
@@ -231,6 +260,8 @@ function cardHtml(s) {
       <div class="due ${dueClass}">${dueText}</div>
     </div>
     <div class="card-actions">
+      ${unpaid.length ? `<button class="icon-btn" data-remind="${s.id}"
+        aria-label="Υπενθύμιση σε όσους δεν πλήρωσαν για τη ${escapeHtml(s.name)}">${icons.share}</button>` : ""}
       <button class="icon-btn ${isPinned(s.id) ? "pinned" : ""}" data-pin="${s.id}"
         aria-label="${isPinned(s.id) ? "Ξεκαρφίτσωμα" : "Καρφίτσωμα στην αρχική"}">${icons.bookmark}</button>
       ${s.cancel_url ? `<a class="icon-btn" href="${escapeHtml(s.cancel_url)}" target="_blank" rel="noopener noreferrer"
@@ -327,6 +358,13 @@ export async function render(view) {
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
   // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders
   view.onclick = async e => {
+    const remindBtn = e.target.closest("[data-remind]");
+    if (remindBtn) {
+      haptic("tap");
+      openRemind(items.find(s => s.id === remindBtn.dataset.remind), remindBtn.closest(".card"));
+      return;
+    }
+
     const pinBtn = e.target.closest("[data-pin]");
     if (pinBtn) {
       const id = pinBtn.dataset.pin;

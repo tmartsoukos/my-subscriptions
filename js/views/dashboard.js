@@ -1,8 +1,8 @@
 import { subscriptions, todos, events, finance } from "../db.js";
 import {
-  escapeHtml, fmt, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost,
+  escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, CYCLES,
-  icons, today, bindDrills
+  icons, today, bindDrills, sendReminder, haptic
 } from "../ui.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
 import { logoFor } from "../logos.js";
@@ -226,6 +226,8 @@ export async function render(view) {
               <div class="meta">${escapeHtml(forSubs.join(", "))}</div>
             </div>
             <div class="price">${fmt(amount)}</div>
+            <button class="icon-btn" data-remind-person="${escapeHtml(name)}"
+              aria-label="Υπενθύμιση σε ${escapeHtml(name)}">${icons.share}</button>
           </div>`;
         }).join("")}
       </div>
@@ -248,6 +250,20 @@ export async function render(view) {
     </div>` : ""}
     ${getLayout().filter(x => x.on).map(x => blocks[x.id] || "").join("")}
   `;
+
+  // Υπενθύμιση σε όποιον χρωστάει, για όλες τις συνδρομές του μαζί
+  view.onclick = async e => {
+    const btn = e.target.closest("[data-remind-person]");
+    if (!btn) return;
+    e.preventDefault();
+    haptic("tap");
+    const name = btn.dataset.remindPerson;
+    await sendReminder(
+      subs.filter(s => unpaidMembers(s).some(m => m.name === name))
+        .map(s => ({ name: s.name, amount: myShare(s), date: fmtDate(nextDue(s)) })),
+      name
+    );
+  };
 
   // Κάθε αριθμός εξηγεί από τι φτιάχτηκε
   const whenText = iso => {

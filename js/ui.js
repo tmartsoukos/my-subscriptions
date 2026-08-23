@@ -118,6 +118,7 @@ export const icons = {
   external: svg('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'),
   card2: svg('<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>'),
   user: svg('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+  share: svg('<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>'),
   apple: svg('<path d="M12 20.94c1.5 0 2.75-.63 3.86-1.89 1.13-1.28 1.64-2.58 1.64-2.63-.03-.01-3.13-1.2-3.13-4.53 0-2.88 2.36-4.16 2.46-4.23-1.35-1.97-3.43-2.02-4-2.02-1.7 0-3.1 1.03-3.9 1.03-.83 0-2.1-1-3.46-.97-1.78.03-3.42 1.03-4.33 2.62-1.85 3.21-.47 7.95 1.33 10.55.88 1.27 1.93 2.7 3.3 2.65 1.32-.05 1.82-.86 3.42-.86 1.59 0 2.04.86 3.43.83Z"/><path d="M15.5 3.5c.73-.88 1.22-2.1 1.08-3.32-1.05.04-2.32.7-3.07 1.58-.68.78-1.27 2.03-1.11 3.22 1.17.09 2.36-.6 3.1-1.48Z"/>')
 };
 
@@ -382,6 +383,40 @@ function buildModal({ title, body, saveLabel = "Αποθήκευση", onSave, o
   const first = overlay.querySelector("input, select, textarea");
   if (first) first.focus();
   return { close, el: overlay };
+}
+
+// ---- Κοινοποίηση κειμένου ----
+// Ανοίγει το φύλλο κοινοποίησης του συστήματος· όπου δεν υπάρχει, αντιγράφει.
+// Ο παραλήπτης επιλέγεται πάντα από τον χρήστη — δεν στέλνεται τίποτα μόνο του.
+export async function shareText(text, title = "Υπενθύμιση") {
+  if (navigator.share) {
+    try { await navigator.share({ title, text }); return "shared"; }
+    catch (e) { if (e.name === "AbortError") return "cancelled"; }
+  }
+  try { await navigator.clipboard.writeText(text); return "copied"; }
+  catch { return "failed"; }
+}
+
+// Ένα μήνυμα υπενθύμισης για όσα οφείλει ένα πρόσωπο.
+// items = [{ name, amount, date }] — το ποσό είναι το μερίδιό του.
+export function reminderMessage(items) {
+  const money = n => fmt(n);
+  if (items.length === 1) {
+    const { name, amount, date } = items[0];
+    return `Μια υπενθύμιση: το «${name}» χρεώνεται ${date}. Το μερίδιό σου είναι ${money(amount)}.`;
+  }
+  const total = items.reduce((s, x) => s + x.amount, 0);
+  return "Μια υπενθύμιση για τις κοινές μας συνδρομές:\n"
+    + items.map(x => `• ${x.name} — ${money(x.amount)} (${x.date})`).join("\n")
+    + `\nΣύνολο: ${money(total)}.`;
+}
+
+// Στέλνει το μήνυμα και ενημερώνει με toast
+export async function sendReminder(items, who) {
+  const res = await shareText(reminderMessage(items), `Υπενθύμιση${who ? " — " + who : ""}`);
+  if (res === "shared") toast("Το μήνυμα στάλθηκε");
+  else if (res === "copied") toast("Το μήνυμα αντιγράφηκε — επικόλλησέ το όπου θες");
+  else if (res === "failed") toast("Δεν μπόρεσα να ετοιμάσω το μήνυμα", "error");
 }
 
 // ---- Ανάλυση αριθμού ----

@@ -123,6 +123,7 @@ a { color: inherit; }
   font-size: 14px; font-weight: 600; padding: 10px 18px; min-height: 44px;
   transition: filter var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur) var(--ease-out);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  text-decoration: none;
 }
 .btn:hover { filter: brightness(1.15); }
 .btn:active { transform: scale(.97); }
@@ -239,7 +240,7 @@ main#view {
 .expand-toggle svg { transition: transform var(--dur) var(--ease-out); }
 .card.open .expand-toggle svg { transform: rotate(90deg); }
 .card-more {
-  flex: 0 0 100%; display: grid; grid-template-rows: 0fr;
+  flex: 0 0 100%; order: 5; display: grid; grid-template-rows: 0fr;
   transition: grid-template-rows var(--dur) var(--ease-out), margin-top var(--dur) var(--ease-out);
   margin-top: 0;
 }
@@ -248,7 +249,8 @@ main#view {
 .card.open .card-more-in { border-top: 1px solid var(--border); padding-top: var(--space-3); }
 .more-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 14px; }
 .more-cell span { display: block; color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; }
-.more-cell strong { font-size: var(--fs-base); font-variant-numeric: tabular-nums; }
+.more-cell strong { font-size: var(--fs-base); font-variant-numeric: tabular-nums;
+  display: block; overflow-wrap: anywhere; }
 .more-sub { color: var(--muted); font-size: 12.5px; margin: 12px 0 6px; }
 .more-dates { display: flex; flex-wrap: wrap; gap: 6px; }
 .more-dates span {
@@ -693,8 +695,13 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 /* ============ Γραφήματα ============ */
 .charts { display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-3); margin-bottom: var(--space-4); }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4) var(--space-5); }
-.chart-card h3 { font-size: 14px; margin-bottom: var(--space-3); color: var(--muted); font-weight: 600; }
-.chart-card svg { width: 100%; height: auto; display: block; }
+.chart-card h3 {
+  font-size: 14px; margin-bottom: var(--space-3); color: var(--muted); font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+/* Το 100% αφορά μόνο τα ίδια τα γραφήματα — τα εικονίδια της κάρτας κρατούν το μέγεθός τους */
+.chart-card .chart-svg { width: 100%; height: auto; display: block; }
+.chart-card h3 svg { width: 15px; height: 15px; flex: 0 0 auto; opacity: .75; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: var(--space-3); font-size: 12.5px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
@@ -823,13 +830,32 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
   .charts { grid-template-columns: 1fr; }
   .stats { grid-template-columns: 1fr 1fr; }
   .card { flex-wrap: wrap; padding: var(--space-3) var(--space-4); }
-  .card-right { text-align: left; width: 100%; display: flex; gap: 12px; align-items: baseline; order: 3; }
+  .card-right {
+    text-align: left; width: 100%; display: flex; gap: 4px 12px;
+    align-items: baseline; flex-wrap: wrap; order: 3;
+  }
+  /* Τα ποσά και οι ημερομηνίες δεν κόβονται στη μέση — αλλάζουν γραμμή ολόκληρα */
+  .card-right > * { flex: 0 0 auto; }
+  .card-right .price, .card-right .due { white-space: nowrap; }
+  .card-right .cycle { flex: 0 1 auto; min-width: 0; }
   .cal-cell { min-height: 54px; padding: 4px; }
   .cal-pill { display: none; }
   .cal-dot-row { display: flex; gap: 3px; flex-wrap: wrap; }
   .cal-dot { width: 6px; height: 6px; border-radius: 50%; }
   .notes-grid { grid-template-columns: 1fr 1fr; }
 }
+/* Οι κάρτες συνδρομών έχουν έξι κουμπιά: όσο δεν υπάρχει άνετος χώρος δίπλα
+   στο όνομα, παίρνουν δική τους σειρά κάτω από την κάρτα. */
+@media (max-width: 1150px) {
+  .card.expandable { align-items: flex-start; }
+  .card.expandable .logo { margin-top: 2px; }
+  .card.expandable .card-actions {
+    width: 100%; order: 4; justify-content: flex-end;
+    gap: 0; margin-top: 2px; border-top: 1px solid var(--border); padding-top: 2px;
+  }
+  .card.expandable .card-actions .icon-btn { min-width: 40px; min-height: 38px; }
+}
+
 @media (min-width: 900px) {
   .cal-dot-row { display: none; }
 }
@@ -1003,6 +1029,8 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 
 /* Καρφιτσωμένα */
 .icon-btn.pinned { color: var(--warn); }
+.icon-btn.subtle { min-width: 34px; min-height: 34px; opacity: .6; }
+.icon-btn.subtle svg { width: 17px; height: 17px; }
+.icon-btn.subtle:hover { opacity: 1; color: var(--accent); background: none; }
 .pins-card h3 { display: flex; align-items: center; gap: 8px; }
-.pins-card h3 svg { width: 17px; height: 17px; }
 .pins-card .card { text-decoration: none; }

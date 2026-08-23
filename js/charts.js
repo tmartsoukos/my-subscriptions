@@ -50,7 +50,7 @@ export function barChart(points) {
     </g>`;
   }).join("");
 
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Προβλεπόμενες χρεώσεις ανά μήνα">
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Προβλεπόμενες χρεώσεις ανά μήνα">
     ${ticks}${bars}
     <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="${C.axis}" stroke-width="1"/>
   </svg>`;
@@ -80,7 +80,7 @@ export function donutChart(items, centerLabel) {
     `<span><i style="background:${x.color}"></i>${escapeHtml(x.label)} · ${fmt(x.value)}</span>`).join("");
 
   return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <svg viewBox="0 0 ${size} ${size}" style="max-width:190px" role="img" aria-label="Κατανομή κόστους ανά κατηγορία">
+    <svg class="chart-svg" viewBox="0 0 ${size} ${size}" style="max-width:190px" role="img" aria-label="Κατανομή κόστους ανά κατηγορία">
       ${segs}
       <text class="donut-label" x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="17" font-weight="700" fill="${C.text}">${escapeHtml(centerLabel)}</text>
       <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="${C.muted}">/ μήνα</text>

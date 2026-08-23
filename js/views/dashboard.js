@@ -216,7 +216,7 @@ export async function render(view) {
       </div>
     </div></div>`,
     ask: `<div class="chart-card ask-card">
-      <h3>${icons.mic} Ρώτα με</h3>
+      <h3>${icons.chat} Ρώτα με</h3>
       <div class="ask-row">
         <input type="text" id="askInput" autocomplete="off" placeholder="π.χ. πόσα ξόδεψα σε φαγητό αυτόν τον μήνα;">
         ${micButtonHtml("askInput")}
@@ -239,8 +239,8 @@ export async function render(view) {
               <div class="meta">${escapeHtml(forSubs.join(", "))}</div>
             </div>
             <div class="price">${fmt(amount)}</div>
-            <button class="icon-btn" data-remind-person="${escapeHtml(name)}"
-              aria-label="Υπενθύμιση σε ${escapeHtml(name)}">${icons.share}</button>
+            <button class="icon-btn subtle" data-remind-person="${escapeHtml(name)}"
+              aria-label="Υπενθύμιση σε ${escapeHtml(name)}">${icons.send}</button>
           </div>`;
         }).join("")}
       </div>

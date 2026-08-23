@@ -196,7 +196,7 @@ function openRemind(sub, from) {
             <div class="drill-label">${escapeHtml(m.name)}</div>
             <div class="drill-meta">μερίδιο ${fmt(myShare(sub))}</div>
           </div>
-          <button class="btn btn-ghost btn-sm" data-send="${i}">${icons.share} Μήνυμα</button>
+          <button class="btn btn-ghost btn-sm" data-send="${i}">${icons.send} Μήνυμα</button>
         </div>`).join("")}
       </div>`,
     onOpen: overlay => {
@@ -297,7 +297,7 @@ function cardHtml(s) {
     </div>
     <div class="card-actions">
       ${unpaid.length ? `<button class="icon-btn" data-remind="${s.id}"
-        aria-label="Υπενθύμιση σε όσους δεν πλήρωσαν για τη ${escapeHtml(s.name)}">${icons.share}</button>` : ""}
+        aria-label="Υπενθύμιση σε όσους δεν πλήρωσαν για τη ${escapeHtml(s.name)}">${icons.send}</button>` : ""}
       <button class="icon-btn ${isPinned(s.id) ? "pinned" : ""}" data-pin="${s.id}"
         aria-label="${isPinned(s.id) ? "Ξεκαρφίτσωμα" : "Καρφίτσωμα στην αρχική"}">${icons.bookmark}</button>
       ${s.cancel_url ? `<a class="icon-btn" href="${escapeHtml(s.cancel_url)}" target="_blank" rel="noopener noreferrer"

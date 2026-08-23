@@ -233,6 +233,30 @@ main#view {
 .drill-meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .drill-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* ---- Κάρτα που ξεδιπλώνεται επί τόπου ---- */
+.card.expandable { flex-wrap: wrap; cursor: pointer; }
+.card.expandable .card-actions { cursor: default; }
+.expand-toggle svg { transition: transform var(--dur) var(--ease-out); }
+.card.open .expand-toggle svg { transform: rotate(90deg); }
+.card-more {
+  flex: 0 0 100%; display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur) var(--ease-out), margin-top var(--dur) var(--ease-out);
+  margin-top: 0;
+}
+.card.open .card-more { grid-template-rows: 1fr; margin-top: var(--space-3); }
+.card-more-in { overflow: hidden; min-height: 0; }
+.card.open .card-more-in { border-top: 1px solid var(--border); padding-top: var(--space-3); }
+.more-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 14px; }
+.more-cell span { display: block; color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; }
+.more-cell strong { font-size: var(--fs-base); font-variant-numeric: tabular-nums; }
+.more-sub { color: var(--muted); font-size: 12.5px; margin: 12px 0 6px; }
+.more-dates { display: flex; flex-wrap: wrap; gap: 6px; }
+.more-dates span {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 10px; font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.card-more-in .btn { margin-top: 12px; }
+
 /* ---- Χάρτης θερμότητας ---- */
 .heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 /* Ο χάρτης κρατάει το φυσικό του πλάτος και κυλάει· δεν τεντώνεται σαν τα γραφήματα */

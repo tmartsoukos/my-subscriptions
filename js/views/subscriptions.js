@@ -209,6 +209,42 @@ function openRemind(sub, from) {
   });
 }
 
+// Οι επόμενες χρεώσεις, κυλώντας τον κύκλο της συνδρομής
+function nextCharges(s, n = 3) {
+  const out = [];
+  let d = nextDue(s);
+  for (let i = 0; i < n; i++) {
+    out.push(new Date(d));
+    const nd = new Date(d);
+    if (s.cycle === "weekly") nd.setDate(nd.getDate() + 7);
+    else if (s.cycle === "monthly") nd.setMonth(nd.getMonth() + 1);
+    else nd.setFullYear(nd.getFullYear() + 1);
+    d = nd;
+  }
+  return out;
+}
+
+// Λεπτομέρειες που ξεδιπλώνονται μέσα στην κάρτα, χωρίς αλλαγή σελίδας
+function moreHtml(s) {
+  const cell = (label, value) => `<div class="more-cell"><span>${label}</span><strong>${value}</strong></div>`;
+  return `<div class="card-more"><div class="card-more-in">
+    <div class="more-grid">
+      ${cell("Ανά έτος", fmt(monthlyCost(s) * 12))}
+      ${cell("Ανά μήνα", fmt(monthlyCost(s)))}
+      ${isShared(s) ? cell("Μερίδιό σου", `${fmt(myShare(s))} από ${fmt(s.price)}`) : ""}
+      ${cell("Κατηγορία", escapeHtml(mergedCategories("subscription", CATEGORIES)[s.category] || "Άλλο"))}
+      ${s.payment_method ? cell("Πληρωμή", escapeHtml(s.payment_method)) : ""}
+      ${s.account_note ? cell("Λογαριασμός", escapeHtml(s.account_note)) : ""}
+    </div>
+    <div class="more-sub">${isInTrial(s) ? "Μετά τη δοκιμή χρεώνεται" : "Επόμενες χρεώσεις"}</div>
+    <div class="more-dates">
+      ${nextCharges(s).map(d => `<span>${fmtDate(d)}</span>`).join("")}
+    </div>
+    ${s.cancel_url ? `<a class="btn btn-ghost btn-sm" href="${escapeHtml(s.cancel_url)}" target="_blank" rel="noopener noreferrer">
+      ${icons.external} Σελίδα ακύρωσης</a>` : ""}
+  </div></div>`;
+}
+
 function cardHtml(s) {
   const d = nextDue(s);
   const days = daysUntil(d);
@@ -242,7 +278,7 @@ function cardHtml(s) {
     s.account_note ? `<span class="acct">${icons.user}${escapeHtml(s.account_note)}</span>` : ""
   ].filter(Boolean).join("");
 
-  return `<div class="card ${cardClass}">
+  return `<div class="card expandable ${cardClass}" data-card="${s.id}">
     <div class="logo" style="--logo:${s.color};background:${s.color}">${logoFor(s)}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(s.name)}
@@ -268,7 +304,10 @@ function cardHtml(s) {
         title="Ακύρωση συνδρομής" aria-label="Άνοιγμα σελίδας ακύρωσης για ${escapeHtml(s.name)}">${icons.external}</a>` : ""}
       <button class="icon-btn" data-edit="${s.id}" aria-label="Επεξεργασία ${escapeHtml(s.name)}">${icons.edit}</button>
       <button class="icon-btn" data-del="${s.id}" aria-label="Διαγραφή ${escapeHtml(s.name)}">${icons.trash}</button>
+      <button class="icon-btn expand-toggle" data-expand="${s.id}" aria-expanded="false"
+        aria-label="Λεπτομέρειες για ${escapeHtml(s.name)}">${icons.chevronR}</button>
     </div>
+    ${moreHtml(s)}
   </div>`;
 }
 
@@ -358,6 +397,17 @@ export async function render(view) {
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
   // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders
   view.onclick = async e => {
+    // Ξεδίπλωμα λεπτομερειών: το βελάκι ή πάτημα στο σώμα της κάρτας
+    const expandBtn = e.target.closest("[data-expand]");
+    const cardEl = e.target.closest(".card.expandable");
+    if (expandBtn || (cardEl && !e.target.closest("button, a"))) {
+      const card = expandBtn ? expandBtn.closest(".card") : cardEl;
+      const open = card.classList.toggle("open");
+      card.querySelector("[data-expand]")?.setAttribute("aria-expanded", String(open));
+      haptic("tap");
+      return;
+    }
+
     const remindBtn = e.target.closest("[data-remind]");
     if (remindBtn) {
       haptic("tap");

@@ -1,7 +1,7 @@
 import { finance, subscriptions } from "../db.js";
 import {
   escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, today, icons, toast, toastAction,
-  openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml, bindMicButtons, collapseRow
+  openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml, bindMicButtons, collapseRow, bindDrills
 } from "../ui.js";
 import { barChart, donutChart } from "../charts.js";
 import { prefs, mergedCategories, categoryColors } from "../prefs.js";
@@ -221,17 +221,17 @@ create policy "own finance" on public.finance_entries
     </div>
 
     <div class="stats">
-      <div class="stat"><div class="label">Σήμερα</div>
+      <div class="stat" data-drill="today"><div class="label">Σήμερα</div>
         <div class="value" style="font-size:var(--fs-md)">
           <span class="amount-in">+${fmt(todayIn)}</span> <span class="amount-out">−${fmt(todayOut)}</span>
         </div>
       </div>
-      <div class="stat"><div class="label">Έσοδα περιόδου</div><div class="value amount-in">${fmt(income)}</div></div>
-      <div class="stat"><div class="label">Έξοδα περιόδου</div><div class="value amount-out">${fmt(expense + fixed)}</div></div>
-      <div class="stat"><div class="label">Υπόλοιπο</div>
+      <div class="stat" data-drill="income"><div class="label">Έσοδα περιόδου</div><div class="value amount-in">${fmt(income)}</div></div>
+      <div class="stat" data-drill="expense"><div class="label">Έξοδα περιόδου</div><div class="value amount-out">${fmt(expense + fixed)}</div></div>
+      <div class="stat" data-drill="balance"><div class="label">Υπόλοιπο</div>
         <div class="value ${balance >= 0 ? "amount-in" : "amount-out"}">${balance >= 0 ? "+" : "−"}${fmt(Math.abs(balance))}</div>
       </div>
-      <div class="stat"><div class="label">Μέσο ημερήσιο έξοδο</div><div class="value">${fmt(perDay)}</div></div>
+      <div class="stat" data-drill="perday"><div class="label">Μέσο ημερήσιο έξοδο</div><div class="value">${fmt(perDay)}</div></div>
     </div>
 
     ${quick.length ? `<div class="quick-row">
@@ -280,6 +280,64 @@ create policy "own finance" on public.finance_entries
   `;
 
   const rerender = (cached = false) => render(view, { cached });
+
+  // Ανάλυση των αριθμών της περιόδου
+  const entryRow = e => ({
+    label: label(e), color: e.kind === "income" ? "#31a35f" : colors()[e.category] || "#7b8fd6",
+    meta: `${e.note ? e.note + " · " : ""}${fmtDateShort(new Date(e.entry_date + "T00:00:00"))}`,
+    value: (e.kind === "income" ? "+" : "−") + fmt(e.amount),
+    cls: e.kind === "income" ? "amount-in" : "amount-out"
+  });
+  const byDay = {};
+  for (const e of shown.filter(e => e.kind === "expense")) {
+    byDay[e.entry_date] = (byDay[e.entry_date] || 0) + Number(e.amount);
+  }
+  bindDrills(view, {
+    today: () => ({
+      title: "Σήμερα",
+      rows: items.filter(e => e.entry_date === todayIso).map(entryRow),
+      total: fmt(todayIn - todayOut), totalLabel: "Καθαρό σήμερα"
+    }),
+    income: () => ({
+      title: "Έσοδα περιόδου",
+      total: fmt(income), totalLabel: "Σύνολο",
+      rows: shown.filter(e => e.kind === "income").map(entryRow)
+    }),
+    expense: () => ({
+      title: "Έξοδα περιόδου",
+      total: fmt(expense + fixed), totalLabel: "Σύνολο",
+      rows: Object.entries(byCat)
+        .sort((a, b) => b[1] - a[1])
+        .map(([c, v]) => ({
+          label: cats("expense")[c] || "Άλλο", color: colors()[c] || "#7b8fd6",
+          meta: (n => `${n} ${n === 1 ? "εγγραφή" : "εγγραφές"}`)(shown.filter(e => e.kind === "expense" && e.category === c).length),
+          value: fmt(v), cls: "amount-out"
+        }))
+        .concat(fixed > 0 ? [{
+          label: "Συνδρομές", color: CAT_COLOR.subs,
+          meta: `${subs.filter(s => !isInTrial(s)).length} ενεργές, ανηγμένες στην περίοδο`,
+          value: fmt(fixed), cls: "amount-out"
+        }] : [])
+    }),
+    balance: () => ({
+      title: "Υπόλοιπο περιόδου",
+      total: (balance >= 0 ? "+" : "−") + fmt(Math.abs(balance)), totalLabel: "Απομένουν",
+      rows: [
+        { label: "Έσοδα", value: "+" + fmt(income), cls: "amount-in" },
+        { label: "Έξοδα", value: "−" + fmt(expense), cls: "amount-out" },
+        { label: "Συνδρομές", value: "−" + fmt(fixed), cls: "amount-out" }
+      ]
+    }),
+    perday: () => ({
+      title: "Μέσο ημερήσιο έξοδο",
+      total: fmt(perDay), totalLabel: `${fmt(expense + fixed)} σε ${days} ${days === 1 ? "ημέρα" : "ημέρες"}`,
+      rows: Object.entries(byDay).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([d, v]) => ({
+        label: d === todayIso ? "Σήμερα" : fmtDate(new Date(d + "T00:00:00")),
+        value: fmt(v), cls: "amount-out"
+      })),
+      note: "Οι μεγαλύτερες ημέρες της περιόδου. Στον μέσο όρο μετράνε και οι συνδρομές."
+    })
+  });
 
   view.querySelector("#btnIncome")?.addEventListener("click", () => openForm(null, "income", rerender));
   view.querySelector("#btnExpense")?.addEventListener("click", () => openForm(null, "expense", rerender));

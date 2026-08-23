@@ -340,7 +340,7 @@ export function openModal(opts) {
   return buildModal(opts);
 }
 
-function buildModal({ title, body, saveLabel = "Αποθήκευση", onSave, onOpen, danger = false }) {
+function buildModal({ title, body, saveLabel = "Αποθήκευση", onSave, onOpen, danger = false, closeLabel = "Άκυρο" }) {
   const root = document.getElementById("modalRoot");
   root.innerHTML = `
     <div class="overlay open">
@@ -352,7 +352,7 @@ function buildModal({ title, body, saveLabel = "Αποθήκευση", onSave, o
         </div>
         <div class="modal-body">${body}</div>
         <div class="modal-actions">
-          <button class="btn btn-ghost" data-close>Άκυρο</button>
+          <button class="btn btn-ghost" data-close>${escapeHtml(closeLabel)}</button>
           ${onSave ? `<button class="btn ${danger ? "btn-danger-solid" : "btn-primary"}" data-save>${escapeHtml(saveLabel)}</button>` : ""}
         </div>
       </div>
@@ -382,6 +382,53 @@ function buildModal({ title, body, saveLabel = "Αποθήκευση", onSave, o
   const first = overlay.querySelector("input, select, textarea");
   if (first) first.focus();
   return { close, el: overlay };
+}
+
+// ---- Ανάλυση αριθμού ----
+// Κάθε στατιστικό εξηγεί από τι φτιάχτηκε: rows = [{ label, value, meta, color, cls }]
+export function drillRowsHtml(rows) {
+  if (!rows.length) return `<p class="hint">Δεν υπάρχει κάτι πίσω από αυτόν τον αριθμό ακόμα.</p>`;
+  return `<div class="drill-list">${rows.map(r => `
+    <div class="drill-row">
+      ${r.color ? `<i class="drill-dot" style="background:${r.color}"></i>` : ""}
+      <div class="drill-main">
+        <div class="drill-label">${escapeHtml(r.label)}</div>
+        ${r.meta ? `<div class="drill-meta">${escapeHtml(r.meta)}</div>` : ""}
+      </div>
+      ${r.value != null ? `<div class="drill-value ${r.cls || ""}">${escapeHtml(String(r.value))}</div>` : ""}
+    </div>`).join("")}</div>`;
+}
+
+export function openDrill({ title, rows = [], note = "", total = null, totalLabel = "" }, from) {
+  openModal({
+    from,
+    title,
+    closeLabel: "Κλείσιμο",
+    body: `
+      ${total != null ? `<div class="drill-total">
+        <span>${escapeHtml(totalLabel || "Σύνολο")}</span><strong>${escapeHtml(String(total))}</strong></div>` : ""}
+      ${drillRowsHtml(rows)}
+      ${note ? `<p class="hint">${escapeHtml(note)}</p>` : ""}`
+  });
+}
+
+// Κάνει πατητά τα [data-drill] μιας σελίδας. Το map δίνει τι θα δείξει το καθένα.
+export function bindDrills(view, map) {
+  view.querySelectorAll("[data-drill]").forEach(el => {
+    const source = map[el.dataset.drill];
+    if (!source) return;
+    el.classList.add("drillable");
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    const open = () => {
+      haptic("tap");
+      openDrill(typeof source === "function" ? source() : source, el);
+    };
+    el.addEventListener("click", open);
+    el.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+    });
+  });
 }
 
 export function confirmModal(message, onConfirm) {

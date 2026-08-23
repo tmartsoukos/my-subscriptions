@@ -1,7 +1,7 @@
 import { courses, todos, events } from "../db.js";
 import {
   escapeHtml, icons, toast, toastAction, openModal, confirmModal,
-  fmtDateShort, isoLocal, daysUntil, today, colorPickerHtml, bindColorPicker, pickedColor
+  fmtDateShort, isoLocal, daysUntil, today, colorPickerHtml, bindColorPicker, pickedColor, bindDrills
 } from "../ui.js";
 import { prefs, pins } from "../prefs.js";
 
@@ -158,10 +158,10 @@ export async function render(view) {
       <button class="btn btn-primary" id="btnAdd">${icons.plus} Νέο μάθημα</button>
     </div>
     <div class="stats">
-      <div class="stat"><div class="label">Μέσος όρος</div><div class="value">${avg != null ? avg.toFixed(2).replace(".", ",") : "—"}</div></div>
-      <div class="stat"><div class="label">Περασμένα</div><div class="value">${count} <small>${ects ? `· ${ects} ECTS` : ""}</small></div></div>
-      <div class="stat"><div class="label">Εργασίες μαθημάτων</div><div class="value">${openTasks.length}</div></div>
-      <div class="stat"><div class="label">Επόμενη προθεσμία</div><div class="value" style="font-size:15px">${
+      <div class="stat" data-drill="avg"><div class="label">Μέσος όρος</div><div class="value">${avg != null ? avg.toFixed(2).replace(".", ",") : "—"}</div></div>
+      <div class="stat" data-drill="passed"><div class="label">Περασμένα</div><div class="value">${count} <small>${ects ? `· ${ects} ECTS` : ""}</small></div></div>
+      <div class="stat" data-drill="tasks"><div class="label">Εργασίες μαθημάτων</div><div class="value">${openTasks.length}</div></div>
+      <div class="stat" data-drill="deadlines"><div class="label">Επόμενη προθεσμία</div><div class="value" style="font-size:15px">${
         nextDeadline ? `${escapeHtml(nextDeadline.title)} · ${fmtDateShort(new Date(nextDeadline.event_date + "T00:00:00"))}` : "—"}</div></div>
     </div>
     <div class="filters">
@@ -174,6 +174,62 @@ export async function render(view) {
   `;
 
   const rerender = () => render(view);
+
+  // Ανάλυση των αριθμών της κορυφής
+  const graded = items.filter(c => c.grade != null && c.status === "passed");
+  const courseName = id => items.find(c => c.id === id)?.name || "";
+  bindDrills(view, {
+    avg: () => ({
+      title: "Μέσος όρος",
+      total: avg != null ? avg.toFixed(2).replace(".", ",") : "—", totalLabel: "Σταθμισμένος με ECTS",
+      rows: [...graded].sort((a, b) => b.grade - a.grade).map(c => ({
+        label: c.name, color: c.color,
+        meta: [c.code, c.ects ? `${c.ects} ECTS` : "χωρίς ECTS"].filter(Boolean).join(" · "),
+        value: String(c.grade).replace(".", ",")
+      })),
+      note: graded.every(c => c.ects)
+        ? "Κάθε βαθμός μετράει ανάλογα με τα ECTS του μαθήματος."
+        : "Κάποια μαθήματα δεν έχουν ECTS, οπότε ο μέσος όρος είναι απλός."
+    }),
+    passed: () => ({
+      title: "Περασμένα μαθήματα",
+      total: `${count} μαθήματα${ects ? ` · ${ects} ECTS` : ""}`, totalLabel: "Σύνολο",
+      rows: [...graded].sort((a, b) => (a.semester || 0) - (b.semester || 0)).map(c => ({
+        label: c.name, color: c.color,
+        meta: c.semester ? `${c.semester}ο εξάμηνο` : "χωρίς εξάμηνο",
+        value: String(c.grade).replace(".", ",")
+      }))
+    }),
+    tasks: () => ({
+      title: "Εργασίες μαθημάτων",
+      total: String(openTasks.length), totalLabel: "Εκκρεμείς",
+      rows: [...openTasks]
+        .sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"))
+        .map(t => ({
+          label: t.title,
+          meta: [courseName(t.course_id), t.due_date ? fmtDateShort(new Date(t.due_date + "T00:00:00")) : "χωρίς προθεσμία"]
+            .filter(Boolean).join(" · "),
+          value: t.due_date && t.due_date < isoLocal(today()) ? "εκπρόθεσμη" : "",
+          cls: "amount-out"
+        }))
+    }),
+    deadlines: () => ({
+      title: "Επόμενες προθεσμίες",
+      rows: allEvents
+        .filter(e => courseIds.has(e.course_id) && e.event_date >= isoLocal(today()))
+        .sort((a, b) => a.event_date.localeCompare(b.event_date))
+        .slice(0, 12)
+        .map(e => {
+          const n = daysUntil(new Date(e.event_date + "T00:00:00"));
+          return {
+            label: e.title, color: e.color,
+            meta: [courseName(e.course_id), fmtDateShort(new Date(e.event_date + "T00:00:00"))].filter(Boolean).join(" · "),
+            value: n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} ημέρες`
+          };
+        })
+    })
+  });
+
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelectorAll("[data-filter]").forEach(b =>

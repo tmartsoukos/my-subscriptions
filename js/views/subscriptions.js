@@ -3,7 +3,7 @@ import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, unpaidMembers,
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
-  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today
+  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills
 } from "../ui.js";
 import { logoFor } from "../logos.js";
 import { mergedCategories, prefs, pins } from "../prefs.js";
@@ -256,17 +256,73 @@ export async function render(view) {
       <button class="btn btn-primary" id="btnAdd">${icons.plus} Νέα συνδρομή</button>
     </div>
     <div class="stats">
-      <div class="stat"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
-      <div class="stat"><div class="label">Ετήσιο κόστος</div><div class="value">${fmt(monthly * 12)} <small>/ έτος</small></div></div>
-      <div class="stat"><div class="label">Ενεργές</div><div class="value">${active.length}</div></div>
-      ${trials.length ? `<div class="stat"><div class="label">Σε δοκιμή</div><div class="value">${trials.length} <small>(+${fmt(trialsMonthly)}/μήνα)</small></div></div>` : ""}
-      ${owed > 0 ? `<div class="stat"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owed)}</div></div>` : ""}
+      <div class="stat" data-drill="monthly"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
+      <div class="stat" data-drill="yearly"><div class="label">Ετήσιο κόστος</div><div class="value">${fmt(monthly * 12)} <small>/ έτος</small></div></div>
+      <div class="stat" data-drill="active"><div class="label">Ενεργές</div><div class="value">${active.length}</div></div>
+      ${trials.length ? `<div class="stat" data-drill="trials"><div class="label">Σε δοκιμή</div><div class="value">${trials.length} <small>(+${fmt(trialsMonthly)}/μήνα)</small></div></div>` : ""}
+      ${owed > 0 ? `<div class="stat" data-drill="owed"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owed)}</div></div>` : ""}
     </div>
     ${sorted.length ? `<div class="section-title">Επερχόμενες πληρωμές</div><div class="list">${sorted.map(cardHtml).join("")}</div>`
       : `<div class="empty">${icons.card}<p>Δεν έχεις προσθέσει καμία συνδρομή ακόμα.</p><button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα συνδρομή</button></div>`}
   `;
 
   const rerender = () => render(view);
+
+  // Ανάλυση των αριθμών της κορυφής
+  const debts = {};
+  for (const s of items) for (const m of unpaidMembers(s)) debts[m.name] = (debts[m.name] || 0) + myShare(s);
+  bindDrills(view, {
+    monthly: () => ({
+      title: "Μηνιαίο κόστος",
+      total: fmt(monthly), totalLabel: "Σύνολο ανά μήνα",
+      rows: [...active].sort((a, b) => monthlyCost(b) - monthlyCost(a)).map(s => ({
+        label: s.name, color: s.color,
+        meta: `${fmt(myShare(s))} ανά ${CYCLES[s.cycle]}${isShared(s) ? ` · μοιρασμένη σε ${shareCount(s)}` : ""}`,
+        value: fmt(monthlyCost(s))
+      })),
+      note: "Οι εβδομαδιαίες πολλαπλασιάζονται επί 52/12 και οι ετήσιες διαιρούνται διά 12."
+    }),
+    yearly: () => ({
+      title: "Ετήσιο κόστος",
+      total: fmt(monthly * 12), totalLabel: "Σύνολο ανά έτος",
+      rows: [...active].sort((a, b) => monthlyCost(b) - monthlyCost(a)).map(s => ({
+        label: s.name, color: s.color,
+        meta: `${fmt(monthlyCost(s))} τον μήνα`,
+        value: fmt(monthlyCost(s) * 12)
+      }))
+    }),
+    active: () => ({
+      title: "Ενεργές συνδρομές",
+      rows: [...active].sort((a, b) => nextDue(a) - nextDue(b)).map(s => ({
+        label: s.name, color: s.color,
+        meta: `${mergedCategories("subscription", CATEGORIES)[s.category] || "Άλλο"} · επόμενη ${fmtDate(nextDue(s))}`,
+        value: fmt(myShare(s))
+      }))
+    }),
+    trials: () => ({
+      title: "Σε δοκιμή",
+      total: fmt(trialsMonthly), totalLabel: "Θα κοστίζουν ανά μήνα",
+      rows: [...trials].sort((a, b) => trialDaysLeft(a) - trialDaysLeft(b)).map(s => {
+        const n = trialDaysLeft(s);
+        return {
+          label: s.name, color: s.color,
+          meta: `λήγει ${n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} ημέρες`}`,
+          value: fmt(myShare(s))
+        };
+      })
+    }),
+    owed: () => ({
+      title: "Μου χρωστάνε",
+      total: fmt(owed), totalLabel: "Σύνολο",
+      rows: Object.entries(debts).sort((a, b) => b[1] - a[1]).map(([name, amount]) => ({
+        label: name,
+        meta: items.filter(s => unpaidMembers(s).some(m => m.name === name)).map(s => s.name).join(", "),
+        value: fmt(amount)
+      })),
+      note: "Σημείωσε ποιος πλήρωσε πατώντας το όνομά του πάνω στην κάρτα."
+    })
+  });
+
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
   // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders

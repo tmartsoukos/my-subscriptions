@@ -206,6 +206,33 @@ main#view {
 .stat .value { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
 .stat .value small { font-size: var(--fs-sm); color: var(--muted); font-weight: 500; letter-spacing: 0; }
 
+/* Στατιστικό που εξηγεί από τι φτιάχτηκε */
+.stat.drillable { cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.stat.drillable:hover { border-color: var(--border-strong); }
+.stat.drillable:active { transform: scale(.985); }
+.stat.drillable::after {
+  content: ""; position: absolute; right: 14px; top: 16px;
+  width: 7px; height: 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg); opacity: .55;
+}
+.stat.drillable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.drill-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 10px 14px; margin-bottom: 10px;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  color: var(--muted); font-size: var(--fs-sm);
+}
+.drill-total strong { color: var(--text); font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+.drill-list { display: flex; flex-direction: column; }
+.drill-row { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--border); }
+.drill-row:last-child { border-bottom: 0; }
+.drill-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.drill-main { flex: 1; min-width: 0; }
+.drill-label { font-size: var(--fs-base); font-weight: 600; }
+.drill-meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.drill-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* ============ Κάρτες λίστας ============ */
 .list { display: flex; flex-direction: column; gap: var(--space-3); }
 .card {

@@ -1,7 +1,8 @@
 import { subscriptions, todos, events, finance } from "../db.js";
 import {
   escapeHtml, fmt, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost,
-  isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, icons, today
+  isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, CYCLES,
+  icons, today, bindDrills
 } from "../ui.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
 import { logoFor } from "../logos.js";
@@ -141,13 +142,13 @@ export async function render(view) {
 
   const blocks = {
     stats: `<div class="stats">
-      <div class="stat"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
-      <div class="stat"><div class="label">Επόμενη πληρωμή</div><div class="value" style="font-size:16px">${next ? escapeHtml(next.name) + " · " + fmtDateShort(nextDue(next)) : "—"}</div></div>
-      <div class="stat"><div class="label">Εκκρεμείς εργασίες</div><div class="value">${pendingTodos.length}</div></div>
-      <div class="stat"><div class="label">Υποχρεώσεις 7 ημερών</div><div class="value">${weekEvents.length}</div></div>
-      ${owedTotal > 0 ? `<div class="stat"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owedTotal)}</div></div>` : ""}
-      ${trials.length ? `<div class="stat"><div class="label">Σε δοκιμή</div><div class="value">${trials.length}</div></div>` : ""}
-      ${finItems.length ? `<div class="stat"><div class="label">Υπόλοιπο μήνα</div>
+      <div class="stat" data-drill="monthly"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
+      <div class="stat" data-drill="next"><div class="label">Επόμενη πληρωμή</div><div class="value" style="font-size:16px">${next ? escapeHtml(next.name) + " · " + fmtDateShort(nextDue(next)) : "—"}</div></div>
+      <div class="stat" data-drill="todos"><div class="label">Εκκρεμείς εργασίες</div><div class="value">${pendingTodos.length}</div></div>
+      <div class="stat" data-drill="events"><div class="label">Υποχρεώσεις 7 ημερών</div><div class="value">${weekEvents.length}</div></div>
+      ${owedTotal > 0 ? `<div class="stat" data-drill="owed"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owedTotal)}</div></div>` : ""}
+      ${trials.length ? `<div class="stat" data-drill="trials"><div class="label">Σε δοκιμή</div><div class="value">${trials.length}</div></div>` : ""}
+      ${finItems.length ? `<div class="stat" data-drill="balance"><div class="label">Υπόλοιπο μήνα</div>
         <div class="value ${monthIn - monthOut - monthly >= 0 ? "amount-in" : "amount-out"}">${fmt(monthIn - monthOut - monthly)}</div></div>` : ""}
     </div>`,
     goals: `${goalRows.length ? `<div class="chart-card goals-card">
@@ -247,5 +248,88 @@ export async function render(view) {
     </div>` : ""}
     ${getLayout().filter(x => x.on).map(x => blocks[x.id] || "").join("")}
   `;
+
+  // Κάθε αριθμός εξηγεί από τι φτιάχτηκε
+  const whenText = iso => {
+    const n = daysUntil(new Date(iso + "T00:00:00"));
+    return n < 0 ? "εκπρόθεσμη" : n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} ημέρες`;
+  };
+  bindDrills(view, {
+    monthly: () => ({
+      title: "Μηνιαίο κόστος",
+      total: fmt(monthly), totalLabel: "Σύνολο ανά μήνα",
+      rows: subs.filter(s => !isInTrial(s))
+        .sort((a, b) => monthlyCost(b) - monthlyCost(a))
+        .map(s => ({
+          label: s.name, color: s.color,
+          meta: `${fmt(myShare(s))} ανά ${CYCLES[s.cycle]}${members(s).length ? ` · μερίδιο ${1}/${1 + members(s).length}` : ""}`,
+          value: fmt(monthlyCost(s))
+        })),
+      note: "Οι εβδομαδιαίες και οι ετήσιες συνδρομές είναι ανηγμένες σε μήνα. Οι δοκιμές δεν μετράνε ακόμα."
+    }),
+    next: () => ({
+      title: "Επόμενες πληρωμές",
+      rows: sortedSubs.slice(0, 10).map(s => {
+        const d = nextDue(s), n = daysUntil(d);
+        return {
+          label: s.name, color: s.color,
+          meta: `${fmtDateShort(d)} · ${n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} ημέρες`}${isInTrial(s) ? " · λήξη δοκιμής" : ""}`,
+          value: fmt(myShare(s))
+        };
+      })
+    }),
+    todos: () => ({
+      title: "Εκκρεμείς εργασίες",
+      total: String(pendingTodos.length), totalLabel: "Σύνολο",
+      rows: [...pendingTodos]
+        .sort((a, b) => a.priority - b.priority || (a.due_date || "9999").localeCompare(b.due_date || "9999"))
+        .slice(0, 15)
+        .map(t => ({
+          label: t.title,
+          meta: t.due_date ? whenText(t.due_date) : "χωρίς προθεσμία",
+          value: t.priority === 1 ? "επείγον" : "",
+          cls: t.due_date && t.due_date < todayIso ? "amount-out" : ""
+        }))
+    }),
+    events: () => ({
+      title: "Υποχρεώσεις 7 ημερών",
+      rows: weekEvents.map(e => ({
+        label: e.title, color: e.color,
+        meta: `${fmtDateShort(new Date(e.event_date + "T00:00:00"))}${e.event_time ? " · " + e.event_time.slice(0, 5) : ""}`,
+        value: whenText(e.event_date)
+      }))
+    }),
+    owed: () => ({
+      title: "Μου χρωστάνε",
+      total: fmt(owedTotal), totalLabel: "Σύνολο",
+      rows: debtList.map(([name, amount]) => ({
+        label: name,
+        meta: subs.filter(s => unpaidMembers(s).some(m => m.name === name)).map(s => s.name).join(", "),
+        value: fmt(amount)
+      }))
+    }),
+    trials: () => ({
+      title: "Δωρεάν δοκιμές",
+      rows: trials.sort((a, b) => trialDaysLeft(a) - trialDaysLeft(b)).map(s => {
+        const n = trialDaysLeft(s);
+        return {
+          label: s.name, color: s.color,
+          meta: `λήγει ${n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} ημέρες`} · μετά ${fmt(myShare(s))} ανά ${CYCLES[s.cycle]}`,
+          value: fmt(monthlyCost(s)) + "/μήνα"
+        };
+      }),
+      note: "Δεν προσμετρώνται στο μηνιαίο κόστος όσο διαρκεί η δοκιμή."
+    }),
+    balance: () => ({
+      title: "Υπόλοιπο μήνα",
+      total: fmt(monthIn - monthOut - monthly), totalLabel: "Απομένουν",
+      rows: [
+        { label: "Έσοδα", value: "+" + fmt(monthIn), cls: "amount-in", meta: (n => `${n} ${n === 1 ? "εγγραφή" : "εγγραφές"}`)(monthEntries.filter(e => e.kind === "income").length) },
+        { label: "Έξοδα", value: "−" + fmt(monthOut), cls: "amount-out", meta: (n => `${n} ${n === 1 ? "εγγραφή" : "εγγραφές"}`)(monthEntries.filter(e => e.kind === "expense").length) },
+        { label: "Συνδρομές", value: "−" + fmt(monthly), cls: "amount-out", meta: `${subs.filter(s => !isInTrial(s)).length} ενεργές` }
+      ],
+      note: "Από την 1η του μήνα μέχρι σήμερα."
+    })
+  });
 }
 

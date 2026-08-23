@@ -169,4 +169,9 @@ getSession().then(session => {
 // Service worker
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js");
+  // Πάτημα σε ειδοποίηση: η ανοιχτή καρτέλα πηγαίνει στο σημείο που αφορά
+  navigator.serviceWorker.addEventListener("message", e => {
+    const hash = e.data?.type === "navigate" ? e.data.hash : null;
+    if (typeof hash === "string" && /^#\/[a-z/-]*$/i.test(hash)) location.hash = hash;
+  });
 }

@@ -105,7 +105,35 @@ async function sendPush(sub: any, body: object, cfg: Record<string, string>) {
   return res.status;
 }
 
-// ---------- Σύνθεση μηνύματος ----------
+// ---------- Σύνθεση μηνυμάτων ----------
+// Κάθε υπενθύμιση είναι δική της ειδοποίηση, με δικό της tag ώστε να μη σβήνει την προηγούμενη
+// και δικό της url ώστε το πάτημα να ανοίγει το σωστό σημείο της εφαρμογής.
+type Note = { title: string; body: string; tag: string; url: string; short: string };
+
+const MAX_SINGLE = 5;
+
+// Πάνω από MAX_SINGLE, οι υπόλοιπες μαζεύονται σε μία συγκεντρωτική
+function toPayloads(items: Note[], weekly: boolean, todayIso: string) {
+  if (!items.length) return [];
+  const one = (i: Note) => ({ title: i.title, body: i.body, tag: i.tag, url: i.url, count: 1 });
+  if (weekly) {
+    return [{
+      title: "Η εβδομάδα σου",
+      body: items.slice(0, 8).map(i => i.short).join("\n"),
+      tag: `weekly:${todayIso}`, url: "#/dashboard", count: items.length
+    }];
+  }
+  if (items.length <= MAX_SINGLE) return items.map(one);
+  const head = items.slice(0, MAX_SINGLE - 1).map(one);
+  const rest = items.slice(MAX_SINGLE - 1);
+  head.push({
+    title: `${rest.length} ακόμη ${rest.length === 1 ? "υπενθύμιση" : "υπενθυμίσεις"}`,
+    body: rest.map(i => i.short).join("\n"),
+    tag: `digest:${todayIso}`, url: "#/dashboard", count: rest.length
+  });
+  return head;
+}
+
 async function buildMessage(admin: any, uid: string, leadDays: number, weekly: boolean) {
   const nowAthens = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Athens" }));
   const today = new Date(nowAthens.getFullYear(), nowAthens.getMonth(), nowAthens.getDate());
@@ -122,7 +150,8 @@ async function buildMessage(admin: any, uid: string, leadDays: number, weekly: b
     admin.from("health_items").select("*").eq("user_id", uid)
   ]);
 
-  const lines: string[] = [];
+  const when = (n: number) => n < 0 ? "εκπρόθεσμη" : n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} μέρες`;
+  const items: Note[] = [];
 
   // Δοκιμές που λήγουν
   for (const s of subs ?? []) {
@@ -130,7 +159,12 @@ async function buildMessage(admin: any, uid: string, leadDays: number, weekly: b
     const d = new Date(s.trial_end + "T00:00:00");
     const n = days(d);
     if (n >= 0 && n <= Math.max(2, horizonDays)) {
-      lines.push(`Λήγει η δοκιμή ${s.name} ${n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} μέρες`} — μετά ${money(share(s))}`);
+      items.push({
+        title: `Λήγει η δοκιμή ${s.name}`,
+        body: `${when(n)} — μετά ${money(share(s))}`,
+        tag: `trial:${s.id}`, url: "#/subs",
+        short: `Λήγει η δοκιμή ${s.name} ${when(n)}`
+      });
     }
   }
   // Χρεώσεις
@@ -139,7 +173,12 @@ async function buildMessage(admin: any, uid: string, leadDays: number, weekly: b
     const n = days(d);
     if (s.trial_end && isoLocal(d) === s.trial_end) continue; // ήδη αναφέρθηκε ως δοκιμή
     if (n >= 0 && n <= horizonDays) {
-      lines.push(`${s.name} ${money(share(s))} ${n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} μέρες`}`);
+      items.push({
+        title: `${s.name} · ${money(share(s))}`,
+        body: `Χρέωση ${when(n)}`,
+        tag: `sub:${s.id}:${isoLocal(d)}`, url: "#/subs",
+        short: `${s.name} ${money(share(s))} ${when(n)}`
+      });
     }
   }
   // Εργασίες
@@ -147,12 +186,21 @@ async function buildMessage(admin: any, uid: string, leadDays: number, weekly: b
     .sort((a: any, b: any) => (a.due_date || "").localeCompare(b.due_date || ""));
   for (const t of dueTasks.slice(0, 4)) {
     const n = days(new Date(t.due_date + "T00:00:00"));
-    lines.push(`${t.title} — ${n < 0 ? "εκπρόθεσμη" : n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} μέρες`}`);
+    items.push({
+      title: t.title, body: `Εργασία — ${when(n)}`,
+      tag: `todo:${t.id}`, url: "#/todos",
+      short: `${t.title} — ${when(n)}`
+    });
   }
   // Υποχρεώσεις
   for (const e of (events ?? []).filter((e: any) => e.event_date >= todayIso && e.event_date <= horizonIso)) {
     const n = days(new Date(e.event_date + "T00:00:00"));
-    lines.push(`${e.title}${e.event_time ? " " + e.event_time.slice(0, 5) : ""} — ${n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} μέρες`}`);
+    const hour = e.event_time ? ` στις ${e.event_time.slice(0, 5)}` : "";
+    items.push({
+      title: e.title, body: `${when(n)}${hour}`,
+      tag: `event:${e.id}:${e.event_date}`, url: "#/calendar",
+      short: `${e.title}${hour} — ${when(n)}`
+    });
   }
   // Υγεία (με κύλιση επανάληψης)
   for (const h of healthItems ?? []) {
@@ -161,13 +209,16 @@ async function buildMessage(admin: any, uid: string, leadDays: number, weekly: b
     if (h.repeat_months) while (d < today) d.setMonth(d.getMonth() + h.repeat_months);
     const n = days(d);
     if (n >= 0 && n <= horizonDays) {
-      lines.push(`${h.title} — ${n === 0 ? "σήμερα" : n === 1 ? "αύριο" : `σε ${n} μέρες`}`);
+      items.push({
+        title: h.title, body: `Υγεία — ${when(n)}`,
+        tag: `health:${h.id}`, url: "#/health",
+        short: `${h.title} — ${when(n)}`
+      });
     }
   }
 
-  if (!lines.length) return null;
-  const title = weekly ? "Η εβδομάδα σου" : lines.length === 1 ? "Μία υπενθύμιση" : `${lines.length} υπενθυμίσεις`;
-  return { title, body: lines.slice(0, 6).join("\n"), count: lines.length };
+  if (!items.length) return null;
+  return { items, payloads: toPayloads(items, weekly, todayIso), count: items.length };
 }
 
 // ---------- HTTP ----------
@@ -192,22 +243,31 @@ Deno.serve(async (req: Request) => {
     const { data: prefs } = await admin.from("notify_prefs").select("*").eq("user_id", tok.user_id).maybeSingle();
     const msg = await buildMessage(admin, tok.user_id, prefs?.lead_days ?? 1, url.searchParams.get("weekly") === "1");
     const mode = url.searchParams.get("mode") || "preview";
-    if (mode === "preview") return json(msg ?? { title: null, body: "Δεν υπάρχει κάτι να σου θυμίσω.", count: 0 });
+    if (mode === "preview") return json(msg ?? { payloads: [], count: 0 });
 
-    const payload = msg ?? { title: "Όλα ήσυχα", body: "Δεν έχεις κάτι επείγον σήμερα.", count: 0 };
+    // Στη δοκιμή φτάνει μία ειδοποίηση — δεν γεμίζουμε την οθόνη κλειδώματος
+    const payloads = mode === "test"
+      ? [msg?.payloads?.[0] ?? {
+          title: "Όλα ήσυχα", body: "Δεν έχεις κάτι επείγον σήμερα.",
+          tag: "test", url: "#/dashboard", count: 0
+        }]
+      : (msg?.payloads ?? []);
+
     const { data: pushSubs } = await admin.from("push_subscriptions").select("*").eq("user_id", tok.user_id);
     const results: number[] = [];
     for (const s of pushSubs ?? []) {
-      try {
-        const status = await sendPush(s, payload, cfg);
-        results.push(status);
-        if (status === 404 || status === 410) await admin.from("push_subscriptions").delete().eq("id", s.id);
-        else if (status < 300) await admin.from("push_subscriptions").update({ last_ok_at: new Date().toISOString() }).eq("id", s.id);
-      } catch (e) {
-        results.push(-1);
+      for (const payload of payloads) {
+        try {
+          const status = await sendPush(s, payload, cfg);
+          results.push(status);
+          if (status === 404 || status === 410) await admin.from("push_subscriptions").delete().eq("id", s.id);
+          else if (status < 300) await admin.from("push_subscriptions").update({ last_ok_at: new Date().toISOString() }).eq("id", s.id);
+        } catch (e) {
+          results.push(-1);
+        }
       }
     }
-    return json({ sent: results.length, statuses: results, payload });
+    return json({ sent: results.length, statuses: results, payloads });
   }
 
   // --- Λειτουργία cron ---
@@ -235,11 +295,13 @@ Deno.serve(async (req: Request) => {
     if (!msg) { skipped++; continue; }
     const { data: pushSubs } = await admin.from("push_subscriptions").select("*").eq("user_id", p.user_id);
     for (const s of pushSubs ?? []) {
-      try {
-        const status = await sendPush(s, msg, cfg);
-        if (status === 404 || status === 410) await admin.from("push_subscriptions").delete().eq("id", s.id);
-        else if (status < 300) { sent++; await admin.from("push_subscriptions").update({ last_ok_at: new Date().toISOString() }).eq("id", s.id); }
-      } catch { /* συνεχίζουμε στις υπόλοιπες συσκευές */ }
+      for (const payload of msg.payloads) {
+        try {
+          const status = await sendPush(s, payload, cfg);
+          if (status === 404 || status === 410) { await admin.from("push_subscriptions").delete().eq("id", s.id); break; }
+          if (status < 300) { sent++; await admin.from("push_subscriptions").update({ last_ok_at: new Date().toISOString() }).eq("id", s.id); }
+        } catch { /* συνεχίζουμε στις υπόλοιπες ειδοποιήσεις */ }
+      }
     }
   }
   return json({ hour, sent, skipped });

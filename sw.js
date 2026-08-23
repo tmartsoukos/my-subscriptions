@@ -1,10 +1,10 @@
-const CACHE = "dash-v12";
+const CACHE = "dash-v13";
 const ASSETS = [
   "./", "index.html", "manifest.json", "icon-192.png", "icon-512.png",
   "css/app.css",
   "js/main.js", "js/config.js", "js/db.js", "js/ui.js", "js/router.js", "js/charts.js",
   "js/logos.js", "js/voice.js", "js/markdown.js", "js/theme.js", "js/push.js", "js/skeleton.js",
-  "js/badge.js", "js/scrolltop.js", "js/prefs.js",
+  "js/badge.js", "js/scrolltop.js", "js/prefs.js", "js/ask.js", "js/heatmap.js",
   "js/views/dashboard.js", "js/views/subscriptions.js", "js/views/todos.js",
   "js/views/calendar.js", "js/views/notes.js", "js/views/settings.js",
   "js/views/watchlist.js", "js/views/more.js", "js/views/studies.js", "js/views/health.js",
@@ -29,23 +29,30 @@ self.addEventListener("activate", e => {
 self.addEventListener("push", e => {
   let data = { title: "Το Dashboard μου", body: "" };
   try { if (e.data) data = e.data.json(); } catch { if (e.data) data.body = e.data.text(); }
+  // Κάθε υπενθύμιση έχει δικό της tag, ώστε η μία να μη σβήνει την άλλη
   e.waitUntil(self.registration.showNotification(data.title || "Το Dashboard μου", {
     body: data.body || "",
     icon: "icon-192.png",
     badge: "icon-192.png",
-    tag: "dashboard-digest",
+    tag: data.tag || "dashboard",
     renotify: true,
-    data: { url: data.url || "./" }
+    data: { url: typeof data.url === "string" && data.url.startsWith("#") ? data.url : "" }
   }));
 });
 
 self.addEventListener("notificationclick", e => {
   e.notification.close();
-  const target = new URL(e.notification.data?.url || "./", self.location.href).href;
+  const hash = e.notification.data?.url || "";
+  const target = self.registration.scope + hash;
   e.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const c of all) {
-      if (c.url.startsWith(self.registration.scope)) { await c.focus(); return; }
+      if (c.url.startsWith(self.registration.scope)) {
+        await c.focus();
+        // Η ανοιχτή καρτέλα πηγαίνει στο σημείο της υπενθύμισης
+        if (hash) c.postMessage({ type: "navigate", hash });
+        return;
+      }
     }
     await self.clients.openWindow(target);
   })());

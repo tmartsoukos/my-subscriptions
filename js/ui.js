@@ -413,6 +413,23 @@ export function reminderMessage(items) {
     + `\nΣύνολο: ${money(total)}.`;
 }
 
+// Ένα μήνυμα για όλους μαζί (π.χ. σε ομαδική συνομιλία): ποιος χρωστάει και πόσο.
+// people = [{ name, amount, detail }]
+export function groupReminderMessage(people, intro = "Υπενθύμιση για τις κοινές μας συνδρομές:") {
+  const total = people.reduce((s, p) => s + Number(p.amount), 0);
+  return `${intro}\n`
+    + people.map(p => `• ${p.name} — ${fmt(p.amount)}${p.detail ? ` (${p.detail})` : ""}`).join("\n")
+    + `\nΣύνολο: ${fmt(total)}.`;
+}
+
+export async function sendGroupReminder(people, { intro, title = "Υπενθύμιση σε όλους" } = {}) {
+  if (!people.length) { toast("Δεν σου χρωστάει κανείς", "error"); return; }
+  const res = await shareText(groupReminderMessage(people, intro), title);
+  if (res === "shared") toast(`Το μήνυμα στάλθηκε — ${people.length} άτομα`);
+  else if (res === "copied") toast("Το μήνυμα αντιγράφηκε — επικόλλησέ το στην ομάδα");
+  else if (res === "failed") toast("Δεν μπόρεσα να ετοιμάσω το μήνυμα", "error");
+}
+
 // Στέλνει το μήνυμα και ενημερώνει με toast
 export async function sendReminder(items, who) {
   const res = await shareText(reminderMessage(items), `Υπενθύμιση${who ? " — " + who : ""}`);

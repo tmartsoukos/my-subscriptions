@@ -2,7 +2,7 @@ import { subscriptions, todos, events, finance } from "../db.js";
 import {
   escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, CYCLES,
-  icons, today, bindDrills, sendReminder, haptic, micButtonHtml, bindMicButtons, drillRowsHtml
+  icons, today, bindDrills, sendReminder, sendGroupReminder, haptic, micButtonHtml, bindMicButtons, drillRowsHtml
 } from "../ui.js";
 import { answer, EXAMPLES } from "../ask.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
@@ -228,7 +228,10 @@ export async function render(view) {
       <div id="askOut" class="ask-out hidden"></div>
     </div>`,
     debts: `${debtList.length ? `<div class="chart-card" style="margin-top:12px">
-      <h3>Μου χρωστάνε · σύνολο ${fmt(owedTotal)}</h3>
+      <h3>Μου χρωστάνε · σύνολο ${fmt(owedTotal)}
+        ${debtList.length > 1 ? `<button class="btn btn-ghost btn-sm" id="btnRemindAll" style="margin-left:auto">
+          ${icons.send} Σε όλους</button>` : ""}
+      </h3>
       <div class="list">
         ${debtList.map(([name, amount]) => {
           const forSubs = subs.filter(s => unpaidMembers(s).some(m => m.name === name)).map(s => s.name);
@@ -291,6 +294,16 @@ export async function render(view) {
 
   // Υπενθύμιση σε όποιον χρωστάει, για όλες τις συνδρομές του μαζί
   view.onclick = async e => {
+    // Ένα μήνυμα για όλους μαζί, π.χ. στην ομαδική συνομιλία
+    if (e.target.closest("#btnRemindAll")) {
+      haptic("tap");
+      await sendGroupReminder(debtList.map(([name, amount]) => ({
+        name, amount,
+        detail: subs.filter(s => unpaidMembers(s).some(m => m.name === name)).map(s => s.name).join(", ")
+      })));
+      return;
+    }
+
     const btn = e.target.closest("[data-remind-person]");
     if (!btn) return;
     e.preventDefault();

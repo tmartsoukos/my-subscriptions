@@ -3,7 +3,7 @@ import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, unpaidMembers,
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
-  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills, sendReminder
+  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills, sendReminder, sendGroupReminder
 } from "../ui.js";
 import { logoFor } from "../logos.js";
 import { mergedCategories, prefs, pins } from "../prefs.js";
@@ -198,9 +198,18 @@ function openRemind(sub, from) {
           </div>
           <button class="btn btn-ghost btn-sm" data-send="${i}">${icons.send} Μήνυμα</button>
         </div>`).join("")}
-      </div>`,
+      </div>
+      ${unpaid.length > 1 ? `<button class="btn btn-primary btn-block" data-send-all>
+        ${icons.send} Ένα μήνυμα σε όλους (${unpaid.length})</button>` : ""}`,
     onOpen: overlay => {
       overlay.addEventListener("click", async e => {
+        if (e.target.closest("[data-send-all]")) {
+          await sendGroupReminder(
+            unpaid.map(m => ({ name: m.name, amount: myShare(sub) })),
+            { intro: `Υπενθύμιση για το «${sub.name}» — χρέωση ${when}:`, title: `Υπενθύμιση — ${sub.name}` }
+          );
+          return;
+        }
         const b = e.target.closest("[data-send]");
         if (!b) return;
         await sendReminder([{ name: sub.name, amount: myShare(sub), date: when }], unpaid[+b.dataset.send]?.name);

@@ -702,6 +702,9 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 /* Το 100% αφορά μόνο τα ίδια τα γραφήματα — τα εικονίδια της κάρτας κρατούν το μέγεθός τους */
 .chart-card .chart-svg { width: 100%; height: auto; display: block; }
 .chart-card h3 svg { width: 15px; height: 15px; flex: 0 0 auto; opacity: .75; }
+/* Κουμπί ενέργειας μέσα στον τίτλο της κάρτας: δεξιά, σε μία γραμμή */
+.chart-card h3 .btn { flex: 0 0 auto; white-space: nowrap; padding: 6px 12px; min-height: 34px; }
+.chart-card h3 .btn svg { opacity: 1; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: var(--space-3); font-size: 12.5px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }

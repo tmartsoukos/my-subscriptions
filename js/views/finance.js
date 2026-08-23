@@ -4,6 +4,7 @@ import {
   openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml, bindMicButtons, collapseRow, bindDrills
 } from "../ui.js";
 import { barChart, donutChart } from "../charts.js";
+import { heatmap } from "../heatmap.js";
 import { prefs, mergedCategories, categoryColors } from "../prefs.js";
 
 export const INCOME_CATEGORIES = {
@@ -133,6 +134,15 @@ function entryHtml(e) {
   </div>`;
 }
 
+// Σύνολο εξόδων ανά ημέρα, για τον χάρτη θερμότητας
+function expenseByDay() {
+  const out = {};
+  for (const e of items) {
+    if (e.kind === "expense") out[e.entry_date] = (out[e.entry_date] || 0) + Number(e.amount);
+  }
+  return out;
+}
+
 // Ημερήσια έξοδα των τελευταίων 14 ημερών, για το ραβδόγραμμα
 function dailySeries() {
   const out = [];
@@ -255,6 +265,11 @@ create policy "own finance" on public.finance_entries
         ${donutItems.length ? donutChart(donutItems, Math.round(expense + fixed) + "€")
           : `<p class="hint">Καμία δαπάνη στην περίοδο.</p>`}
       </div>
+    </div>` : ""}
+
+    ${items.some(e => e.kind === "expense") ? `<div class="chart-card">
+      <h3>Ημέρες με έξοδα — 26 εβδομάδες</h3>
+      ${heatmap(expenseByDay(), { format: fmt, empty: "χωρίς έξοδα" })}
     </div>` : ""}
 
     <div class="chart-card fixed-card">

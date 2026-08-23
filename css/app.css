@@ -233,6 +233,20 @@ main#view {
 .drill-meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .drill-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* ---- Ρώτα με ---- */
+.ask-row { display: flex; gap: 8px; align-items: center; }
+.ask-row input {
+  flex: 1; min-width: 0;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); padding: 11px 12px; font-size: var(--fs-base); font-family: inherit;
+}
+.ask-row input:focus { outline: none; border-color: var(--accent); }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ask-chips .filter-chip { font-size: 12px; }
+.ask-out { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.ask-out.hidden { display: none; }
+.ask-text { font-size: var(--fs-md); line-height: 1.45; margin-bottom: 10px; }
+
 /* ============ Κάρτες λίστας ============ */
 .list { display: flex; flex-direction: column; gap: var(--space-3); }
 .card {

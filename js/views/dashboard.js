@@ -2,8 +2,9 @@ import { subscriptions, todos, events, finance } from "../db.js";
 import {
   escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, myShare, unpaidMembers, CATEGORIES, CYCLES,
-  icons, today, bindDrills, sendReminder, haptic
+  icons, today, bindDrills, sendReminder, haptic, micButtonHtml, bindMicButtons, drillRowsHtml
 } from "../ui.js";
+import { answer, EXAMPLES } from "../ask.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
 import { logoFor } from "../logos.js";
 import { greeting, prefs, getLayout, pins as pinStore } from "../prefs.js";
@@ -214,6 +215,18 @@ export async function render(view) {
         </div>
       </div>
     </div></div>`,
+    ask: `<div class="chart-card ask-card">
+      <h3>${icons.mic} Ρώτα με</h3>
+      <div class="ask-row">
+        <input type="text" id="askInput" autocomplete="off" placeholder="π.χ. πόσα ξόδεψα σε φαγητό αυτόν τον μήνα;">
+        ${micButtonHtml("askInput")}
+        <button class="btn btn-primary" id="askGo">Ρώτα</button>
+      </div>
+      <div class="ask-chips">
+        ${EXAMPLES.slice(0, 4).map(x => `<button class="filter-chip" data-ask="${escapeHtml(x)}">${escapeHtml(x)}</button>`).join("")}
+      </div>
+      <div id="askOut" class="ask-out hidden"></div>
+    </div>`,
     debts: `${debtList.length ? `<div class="chart-card" style="margin-top:12px">
       <h3>Μου χρωστάνε · σύνολο ${fmt(owedTotal)}</h3>
       <div class="list">
@@ -250,6 +263,31 @@ export async function render(view) {
     </div>` : ""}
     ${getLayout().filter(x => x.on).map(x => blocks[x.id] || "").join("")}
   `;
+
+  // Ερωτήσεις στα ελληνικά, απαντημένες από τα δεδομένα που έχουμε ήδη εδώ
+  const askInput = view.querySelector("#askInput");
+  if (askInput) {
+    const out = view.querySelector("#askOut");
+    let courseCache = courseItems;
+    const run = async () => {
+      const question = askInput.value.trim();
+      if (!question) return;
+      // Τα μαθήματα φορτώνονται μόνο αν η ερώτηση τα αφορά
+      if (/βαθμ|μέσο|μεσο|μαθημ/i.test(question) && !courseCache.length) {
+        courseCache = await courses.list().catch(() => []);
+      }
+      const a = answer(question, {
+        subs, todos: todoItems, events: evItems, finance: finItems, courses: courseCache
+      });
+      out.classList.remove("hidden");
+      out.innerHTML = `<p class="ask-text">${escapeHtml(a.text)}</p>${a.rows?.length ? drillRowsHtml(a.rows) : ""}`;
+    };
+    view.querySelector("#askGo").addEventListener("click", run);
+    askInput.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+    view.querySelectorAll("[data-ask]").forEach(b =>
+      b.addEventListener("click", () => { askInput.value = b.dataset.ask; run(); }));
+    bindMicButtons(view, () => run());
+  }
 
   // Υπενθύμιση σε όποιον χρωστάει, για όλες τις συνδρομές του μαζί
   view.onclick = async e => {

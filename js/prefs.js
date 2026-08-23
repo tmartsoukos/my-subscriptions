@@ -34,6 +34,7 @@ export const DEFAULT_TABS = ["dashboard", "finance", "todos", "calendar", "more"
 export const DASH_CARDS = {
   pins:      "Καρφιτσωμένα",
   stats:     "Στατιστικά",
+  ask:       "Ρώτα με",
   goals:     "Στόχοι",
   charts:    "Γραφήματα συνδρομών",
   upcoming:  "Επερχόμενες πληρωμές",

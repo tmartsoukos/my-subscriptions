@@ -1,5 +1,8 @@
 import "./theme.js";
-import { getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData } from "./db.js";
+import {
+  getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData,
+  onQueueChange, queuedCount, flushQueue
+} from "./db.js";
 import { icons, toast } from "./ui.js";
 import { refreshBadge } from "./badge.js";
 import { loadPrefs, getStartRoute, paintTabs } from "./prefs.js";
@@ -58,6 +61,8 @@ async function showApp() {
     router.render();
   }
   refreshBadge();
+  paintOfflineBanner();
+  syncPending();
   // Μία φορά: εισαγωγή παλιών τοπικών δεδομένων
   try {
     const n = await migrateLocalData();
@@ -68,10 +73,37 @@ async function showApp() {
   } catch { /* όχι κρίσιμο — υπάρχει και κουμπί στις Ρυθμίσεις */ }
 }
 
-// Offline banner
-onOfflineChange(off => {
-  document.getElementById("offlineBanner").classList.toggle("hidden", !off);
-});
+// Μπάρα κατάστασης: εκτός σύνδεσης και αλλαγές που περιμένουν να σταλούν
+let offlineNow = false;
+function paintOfflineBanner() {
+  const n = queuedCount();
+  const banner = document.getElementById("offlineBanner");
+  const text = document.getElementById("offlineText");
+  banner.classList.toggle("hidden", !offlineNow && n === 0);
+  if (offlineNow) {
+    text.textContent = n
+      ? `Εκτός σύνδεσης — ${n === 1 ? "μία αλλαγή περιμένει" : `${n} αλλαγές περιμένουν`} να σταλεί`
+      : "Εκτός σύνδεσης — ό,τι αλλάζεις αποθηκεύεται και θα σταλεί μόλις γυρίσει το δίκτυο";
+  } else {
+    text.textContent = `Αποστολή ${n === 1 ? "μίας αλλαγής" : `${n} αλλαγών`}...`;
+  }
+}
+onOfflineChange(off => { offlineNow = off; paintOfflineBanner(); });
+onQueueChange(paintOfflineBanner);
+
+// Μόλις γυρίσει η σύνδεση, φεύγει ό,τι έχει μαζευτεί
+async function syncPending() {
+  if (!queuedCount()) return;
+  const { done, dropped } = await flushQueue();
+  paintOfflineBanner();
+  if (done) {
+    toast(done === 1 ? "Η αλλαγή στάλθηκε" : `Στάλθηκαν ${done} αλλαγές`);
+    router.render();
+    refreshBadge();
+  }
+  if (dropped) toast(`${dropped === 1 ? "Μία αλλαγή" : `${dropped} αλλαγές`} δεν στάλθηκαν`, "error");
+}
+window.addEventListener("online", syncPending);
 
 // Auth φόρμα
 const authError = document.getElementById("authError");

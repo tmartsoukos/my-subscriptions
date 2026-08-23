@@ -36,7 +36,71 @@ function setOffline(v) {
 }
 
 function isNetworkError(e) {
+  if (navigator.onLine === false) return true;
   return e instanceof TypeError || /fetch|network|Failed to/i.test(e.message || "");
+}
+
+// ---- Ουρά αλλαγών εκτός σύνδεσης ----
+// Ό,τι γράφεται χωρίς δίκτυο μπαίνει σε ουρά, εφαρμόζεται τοπικά στο cache,
+// και στέλνεται με τη σειρά μόλις επιστρέψει η σύνδεση.
+const QUEUE_KEY = "queue:ops";
+const queueListeners = [];
+
+function readQueue() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch { return []; }
+}
+function writeQueue(q) {
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  queueListeners.forEach(cb => cb(q.length));
+}
+export function onQueueChange(cb) { queueListeners.push(cb); }
+export function queuedCount() { return readQueue().length; }
+
+function enqueue(op) { writeQueue([...readQueue(), { ...op, at: Date.now() }]); }
+
+const cacheOf = table => {
+  try { return JSON.parse(localStorage.getItem("cache:" + table)) || []; } catch { return []; }
+};
+const putCache = (table, rows) => localStorage.setItem("cache:" + table, JSON.stringify(rows));
+
+const newId = () => (crypto.randomUUID
+  ? crypto.randomUUID()
+  : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+    }));
+
+function runOp(op) {
+  if (op.op === "insert") return withMissingColumnRetry(op.row, r => sb.from(op.table).insert(r).select().single());
+  if (op.op === "update") return withMissingColumnRetry(op.patch, p => sb.from(op.table).update(p).eq("id", op.id).select().single());
+  return sb.from(op.table).delete().eq("id", op.id).then(({ error }) => { if (error) throw error; });
+}
+
+let flushing = false;
+// Επιστρέφει { done, dropped }. Οι πράξεις φεύγουν με τη σειρά που έγιναν·
+// αν πέσει πάλι το δίκτυο, ό,τι μένει περιμένει την επόμενη φορά.
+export async function flushQueue() {
+  if (flushing) return { done: 0, dropped: 0 };
+  flushing = true;
+  let done = 0, dropped = 0;
+  try {
+    let q = readQueue();
+    while (q.length) {
+      try {
+        await runOp(q[0]);
+        done++;
+      } catch (e) {
+        if (isNetworkError(e)) { setOffline(true); return { done, dropped }; }
+        dropped++;   // μόνιμο σφάλμα (π.χ. η εγγραφή δεν υπάρχει πια) — δεν ξαναδοκιμάζεται
+      }
+      q.shift();
+      writeQueue(q);
+    }
+    if (done) setOffline(false);
+  } finally {
+    flushing = false;
+  }
+  return { done, dropped };
 }
 
 // Αν λείπει στήλη από τη βάση (δεν έχει τρέξει ακόμα το migration), αφαίρεσέ την
@@ -59,6 +123,8 @@ export function store(table, orderColumn, ascending = true) {
   return {
     async list() {
       try {
+        // Πρώτα φεύγουν οι αλλαγές που έγιναν εκτός σύνδεσης, μετά διαβάζουμε
+        if (readQueue().length) await flushQueue();
         let q = sb.from(table).select("*");
         if (orderColumn) q = q.order(orderColumn, { ascending });
         const { data, error } = await q;
@@ -76,14 +142,45 @@ export function store(table, orderColumn, ascending = true) {
       }
     },
     async insert(row) {
-      return withMissingColumnRetry(row, r => sb.from(table).insert(r).select().single());
+      try {
+        const data = await withMissingColumnRetry(row, r => sb.from(table).insert(r).select().single());
+        setOffline(false);
+        return data;
+      } catch (e) {
+        if (!isNetworkError(e)) throw e;
+        setOffline(true);
+        // Το id δίνεται εδώ ώστε οι επόμενες αλλαγές στην ίδια εγγραφή να το βρίσκουν
+        const local = { created_at: new Date().toISOString(), ...row, id: row.id || newId() };
+        putCache(table, [...cacheOf(table), local]);
+        enqueue({ op: "insert", table, row: local });
+        return local;
+      }
     },
     async update(id, patch) {
-      return withMissingColumnRetry(patch, p => sb.from(table).update(p).eq("id", id).select().single());
+      try {
+        const data = await withMissingColumnRetry(patch, p => sb.from(table).update(p).eq("id", id).select().single());
+        setOffline(false);
+        return data;
+      } catch (e) {
+        if (!isNetworkError(e)) throw e;
+        setOffline(true);
+        const rows = cacheOf(table).map(r => r.id === id ? { ...r, ...patch } : r);
+        putCache(table, rows);
+        enqueue({ op: "update", table, id, patch });
+        return rows.find(r => r.id === id) || { id, ...patch };
+      }
     },
     async remove(id) {
-      const { error } = await sb.from(table).delete().eq("id", id);
-      if (error) throw error;
+      try {
+        const { error } = await sb.from(table).delete().eq("id", id);
+        if (error) throw error;
+        setOffline(false);
+      } catch (e) {
+        if (!isNetworkError(e)) throw e;
+        setOffline(true);
+        putCache(table, cacheOf(table).filter(r => r.id !== id));
+        enqueue({ op: "remove", table, id });
+      }
     }
   };
 }

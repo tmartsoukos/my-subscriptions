@@ -40,7 +40,7 @@ function formHtml(h) {
     <div class="row2">
       <div class="field">
         <label for="fDate">Ημερομηνία</label>
-        <input type="date" id="fDate" value="${h?.item_date || isoLocal(new Date())}">
+        <input type="date" id="fDate" value="${h?.item_date || isoLocal(today())}">
       </div>
       <div class="field">
         <label for="fTime">Ώρα (προαιρετικό)</label>

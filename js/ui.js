@@ -17,7 +17,19 @@ export function fmtDateShort(d) {
 export function isoLocal(d) {
   return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 }
-export function today() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+// ---- Πότε αρχίζει η μέρα ----
+// Για όποιον ξενυχτάει: με όριο 4 π.μ., μια καταχώριση στη 1:30 π.μ. ανήκει στη χθεσινή μέρα.
+const DAY_START_KEY = "pref:daystart";
+export function dayStartHour() {
+  const h = Number(localStorage.getItem(DAY_START_KEY));
+  return Number.isFinite(h) && h > 0 && h < 12 ? Math.floor(h) : 0;
+}
+export function today() {
+  const d = new Date();
+  if (d.getHours() < dayStartHour()) d.setDate(d.getDate() - 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 export function daysUntil(d) { return Math.round((d - today()) / 86400000); }
 
 // ---- Δωρεάν δοκιμαστική περίοδος ----

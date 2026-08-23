@@ -49,7 +49,14 @@ const MONTHS = {
 function iso(d) {
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
-function todayLocal() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+// Ίδια αρχή ημέρας με την υπόλοιπη εφαρμογή (ρύθμιση «η μέρα αρχίζει στις»)
+function todayLocal() {
+  const h = Number(localStorage.getItem("pref:daystart")) || 0;
+  const d = new Date();
+  if (d.getHours() < h) d.setDate(d.getDate() - 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 function plusDays(n) { const d = todayLocal(); d.setDate(d.getDate() + n); return d; }
 
 // Επιστρέφει { title, due_date, priority } αφαιρώντας τις φράσεις που καταναλώθηκαν

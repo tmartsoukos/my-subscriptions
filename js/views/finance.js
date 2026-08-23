@@ -62,7 +62,7 @@ function formHtml(e, kind) {
       </div>
       <div class="field">
         <label for="fDate">Ημερομηνία</label>
-        <input type="date" id="fDate" value="${e?.entry_date || isoLocal(new Date())}">
+        <input type="date" id="fDate" value="${e?.entry_date || isoLocal(today())}">
       </div>
     </div>
     <div class="field">
@@ -95,7 +95,7 @@ function openForm(entry, kind, rerender, from) {
         kind: k,
         amount,
         category: overlay.querySelector("#fCat").value,
-        entry_date: overlay.querySelector("#fDate").value || isoLocal(new Date()),
+        entry_date: overlay.querySelector("#fDate").value || isoLocal(today()),
         note: overlay.querySelector("#fNote").value.trim() || null
       };
       if (entry) await finance.update(entry.id, row);

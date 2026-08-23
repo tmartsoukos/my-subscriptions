@@ -123,6 +123,15 @@ export function setStartRoute(route) {
   saveProfile({ start_route: route });
 }
 
+// ---- Πότε αρχίζει η μέρα ----
+// 0 = τα μεσάνυχτα. Με 4, ό,τι καταχωρείς πριν τις 4 π.μ. μετράει στη χθεσινή μέρα.
+const DAY_START_KEY = "pref:daystart";
+export const getDayStart = () => Number(localStorage.getItem(DAY_START_KEY)) || 0;
+export function setDayStart(hour) {
+  localStorage.setItem(DAY_START_KEY, String(hour));
+  saveProfile({ day_start_hour: hour });
+}
+
 // ---- Όνομα ----
 export const getName = () => localStorage.getItem(NAME_KEY) || "";
 export function setName(name) {
@@ -211,6 +220,7 @@ export async function loadPrefs() {
       if (profile.display_name != null) localStorage.setItem(NAME_KEY, profile.display_name);
       if (profile.accent) localStorage.setItem(ACCENT_KEY, profile.accent);
       if (profile.start_route) localStorage.setItem(START_KEY, profile.start_route);
+      if (profile.day_start_hour != null) localStorage.setItem(DAY_START_KEY, String(profile.day_start_hour));
       if (Array.isArray(profile.tabs) && profile.tabs.length) localStorage.setItem(TABS_KEY, JSON.stringify(profile.tabs));
       if (Array.isArray(profile.dash_layout) && profile.dash_layout.length) {
         localStorage.setItem(LAYOUT_KEY, JSON.stringify(profile.dash_layout));

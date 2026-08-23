@@ -70,7 +70,7 @@ export async function render(view) {
   // Δοκιμές που λήγουν σύντομα — η πιο επείγουσα πληροφορία
   const endingTrials = trials.filter(s => trialDaysLeft(s) <= 7).sort((a, b) => trialDaysLeft(a) - trialDaysLeft(b));
   const todayIso = isoLocal(today());
-  const in7 = isoLocal(new Date(Date.now() + 7 * 86400000));
+  const in7 = isoLocal(new Date(today().getTime() + 7 * 86400000));
   const weekEvents = evItems.filter(e => e.event_date >= todayIso && e.event_date <= in7);
 
   const sortedSubs = [...subs].sort((a, b) => nextDue(a) - nextDue(b));

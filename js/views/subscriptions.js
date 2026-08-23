@@ -3,7 +3,7 @@ import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, unpaidMembers,
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
-  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow
+  colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today
 } from "../ui.js";
 import { logoFor } from "../logos.js";
 import { mergedCategories, prefs, pins } from "../prefs.js";
@@ -41,7 +41,7 @@ function formHtml(sub) {
     <div class="row2">
       <div class="field">
         <label for="fDate" id="fDateLabel">${trial ? "Λήξη δοκιμής (πρώτη χρέωση)" : "Επόμενη χρέωση"}</label>
-        <input type="date" id="fDate" value="${sub ? (trial ? sub.trial_end : sub.next_date) : isoLocal(new Date())}">
+        <input type="date" id="fDate" value="${sub ? (trial ? sub.trial_end : sub.next_date) : isoLocal(today())}">
       </div>
       <div class="field">
         <label for="fCat">Κατηγορία</label>

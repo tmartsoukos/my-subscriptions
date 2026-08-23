@@ -46,7 +46,7 @@ function formHtml(ev, dateIso) {
     <div class="row2">
       <div class="field">
         <label for="fDate">Ημερομηνία</label>
-        <input type="date" id="fDate" value="${ev?.event_date || dateIso || isoLocal(new Date())}">
+        <input type="date" id="fDate" value="${ev?.event_date || dateIso || isoLocal(today())}">
       </div>
       <div class="field">
         <label for="fTime">Ώρα (προαιρετικό)</label>

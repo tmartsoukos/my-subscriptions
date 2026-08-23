@@ -6,7 +6,7 @@ import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
 import {
   ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
   uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories,
-  SECTIONS, getTabs, setTabs, DASH_CARDS, getLayout, setLayout, pins
+  SECTIONS, getTabs, setTabs, DASH_CARDS, getLayout, setLayout, pins, getDayStart, setDayStart
 } from "../prefs.js";
 
 const ROUTES = {
@@ -104,6 +104,16 @@ export async function render(view) {
         ${[["comfortable", "Άνετη"], ["compact", "Συμπαγής"]].map(([v, l]) =>
           `<button class="seg-btn" data-density="${v}">${l}</button>`).join("")}
       </div>
+
+      <div class="field" style="margin-top:14px">
+        <label for="fDayStart">Η μέρα αρχίζει στις</label>
+        <select id="fDayStart">
+          ${[0, 3, 4, 5, 6].map(h =>
+            `<option value="${h}" ${getDayStart() === h ? "selected" : ""}>${
+              h === 0 ? "00:00 — τα μεσάνυχτα" : String(h).padStart(2, "0") + ":00"}</option>`).join("")}
+        </select>
+      </div>
+      <p class="hint">Αν ξενυχτάς: με όριο 04:00, ένα έξοδο που καταχωρείς στη 1:30 π.μ. μετράει στη χθεσινή μέρα.</p>
     </div>
 
     <div class="settings-block">
@@ -317,6 +327,10 @@ export async function render(view) {
   view.querySelector("#fStart").addEventListener("change", e => {
     setStartRoute(e.target.value);
     toast("Η αρχική σελίδα αποθηκεύτηκε");
+  });
+  view.querySelector("#fDayStart").addEventListener("change", e => {
+    setDayStart(Number(e.target.value));
+    toast(Number(e.target.value) === 0 ? "Η μέρα αλλάζει τα μεσάνυχτα" : `Η μέρα αλλάζει στις ${e.target.value}:00`);
   });
 
   // ---- Χρώμα τόνου ----

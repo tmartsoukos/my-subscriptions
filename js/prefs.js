@@ -97,12 +97,47 @@ export function setLayout(layout) {
 
 export const prefs = () => state;
 
+// ---- Ζωντανό φως: το φόντο ακολουθεί το πώς πας στους στόχους ----
+// mood: +1 άνετα (ψυχρό πράσινο φως), 0 ουδέτερο, -1 ξεπερασμένο όριο (ζεστό κεχριμπάρι).
+// Ο τόνος που διάλεξες μένει άθικτος — αλλάζει το φως του χώρου, όχι το χρώμα σου.
+// (Ανάμειξη του τόνου με το χρώμα διάθεσης θα περνούσε από γκρι όταν τα δύο
+//  είναι συμπληρωματικά, π.χ. μπλε με κεχριμπάρι.)
+const MOOD_KEY = "pref:mood";
+const MOOD_ON_KEY = "pref:moodon";
+const MOOD_GOOD = "34, 176, 125";
+const MOOD_WARN = "224, 145, 47";
+
+export const moodEnabled = () => localStorage.getItem(MOOD_ON_KEY) !== "0";
+export function setMoodEnabled(on) {
+  localStorage.setItem(MOOD_ON_KEY, on ? "1" : "0");
+  applyMood();
+  saveProfile({ mood_accent: on });
+}
+export const getMood = () => Number(localStorage.getItem(MOOD_KEY)) || 0;
+export function setMood(value) {
+  const v = Math.max(-1, Math.min(1, Number(value) || 0));
+  const changed = Math.abs(v - getMood()) > 0.02;
+  localStorage.setItem(MOOD_KEY, v.toFixed(3));
+  if (changed) applyMood();
+}
+
+export function applyMood() {
+  const mood = moodEnabled() ? getMood() : 0;
+  const light = document.documentElement.dataset.theme === "light";
+  const rgb = mood >= 0 ? MOOD_GOOD : MOOD_WARN;
+  const a = Math.min(Math.abs(mood), 1) * (light ? 0.13 : 0.17);
+  const root = document.documentElement.style;
+  root.setProperty("--mood-a", `rgba(${rgb}, ${a.toFixed(3)})`);
+  root.setProperty("--mood-b", `rgba(${rgb}, ${(a * 0.65).toFixed(3)})`);
+}
+
 // ---- Χρώμα τόνου ----
 export function applyAccent(key = localStorage.getItem(ACCENT_KEY) || "blue") {
   const a = ACCENTS[key] || ACCENTS.blue;
   const light = document.documentElement.dataset.theme === "light";
   const c1 = light ? a.light1 : a.c1;
   const c2 = light ? a.light2 : a.c2;
+  applyMood();
   const root = document.documentElement.style;
   root.setProperty("--accent", c1);
   root.setProperty("--accent2", c2);
@@ -222,6 +257,7 @@ export async function loadPrefs() {
       if (profile.accent) localStorage.setItem(ACCENT_KEY, profile.accent);
       if (profile.start_route) localStorage.setItem(START_KEY, profile.start_route);
       if (profile.day_start_hour != null) localStorage.setItem(DAY_START_KEY, String(profile.day_start_hour));
+      if (profile.mood_accent != null) localStorage.setItem(MOOD_ON_KEY, profile.mood_accent ? "1" : "0");
       if (Array.isArray(profile.tabs) && profile.tabs.length) localStorage.setItem(TABS_KEY, JSON.stringify(profile.tabs));
       if (Array.isArray(profile.dash_layout) && profile.dash_layout.length) {
         localStorage.setItem(LAYOUT_KEY, JSON.stringify(profile.dash_layout));

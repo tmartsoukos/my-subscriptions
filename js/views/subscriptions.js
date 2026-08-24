@@ -5,7 +5,7 @@ import {
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
   colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills, sendReminder, sendGroupReminder
 } from "../ui.js";
-import { logoFor } from "../logos.js";
+import { logoFor, dnaAttrs } from "../logos.js";
 import { mergedCategories, prefs, pins } from "../prefs.js";
 
 let items = [];
@@ -288,7 +288,7 @@ function cardHtml(s) {
   ].filter(Boolean).join("");
 
   return `<div class="card expandable ${cardClass}" data-card="${s.id}">
-    <div class="logo" style="--logo:${s.color};background:${s.color}">${logoFor(s)}</div>
+    <div class="logo" ${dnaAttrs(s, `--logo:${s.color};background:${s.color};`)}>${logoFor(s)}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(s.name)}
         ${trial ? `<span class="badge badge-trial">ΔΟΚΙΜΗ</span>` : ""}

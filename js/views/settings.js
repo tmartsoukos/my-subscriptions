@@ -6,7 +6,8 @@ import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
 import {
   ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
   uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories,
-  SECTIONS, getTabs, setTabs, DASH_CARDS, getLayout, setLayout, pins, getDayStart, setDayStart
+  SECTIONS, getTabs, setTabs, DASH_CARDS, getLayout, setLayout, pins, getDayStart, setDayStart,
+  moodEnabled, setMoodEnabled
 } from "../prefs.js";
 
 const ROUTES = {
@@ -95,6 +96,11 @@ export async function render(view) {
           `<button class="accent-dot ${getAccent() === k ? "active" : ""}" data-accent="${k}"
             style="background:linear-gradient(135deg, ${a.c1}, ${a.c2})" title="${a.label}" aria-label="${a.label}"></button>`).join("")}
       </div>
+      <label class="check-row" style="margin-top:10px">
+        <input type="checkbox" id="fMood" ${moodEnabled() ? "checked" : ""}>
+        <span>Ζωντανό φως — το φόντο δροσίζει όταν είσαι εντός στόχων και ζεσταίνει όταν πλησιάζεις τα όρια</span>
+      </label>
+
       <p>Θέμα και πυκνότητα λίστας. Το «σύστημα» ακολουθεί τη ρύθμιση της συσκευής.</p>
       <div class="seg" id="themeSeg" role="group" aria-label="Θέμα">
         ${[["system", "Σύστημα"], ["light", "Φωτεινό"], ["dark", "Σκούρο"]].map(([v, l]) =>
@@ -327,6 +333,10 @@ export async function render(view) {
   view.querySelector("#fStart").addEventListener("change", e => {
     setStartRoute(e.target.value);
     toast("Η αρχική σελίδα αποθηκεύτηκε");
+  });
+  view.querySelector("#fMood").addEventListener("change", e => {
+    setMoodEnabled(e.target.checked);
+    toast(e.target.checked ? "Το φως ακολουθεί τους στόχους σου" : "Σταθερό φόντο");
   });
   view.querySelector("#fDayStart").addEventListener("change", e => {
     setDayStart(Number(e.target.value));

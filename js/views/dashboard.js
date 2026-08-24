@@ -5,9 +5,10 @@ import {
   icons, today, bindDrills, sendReminder, sendGroupReminder, haptic, micButtonHtml, bindMicButtons, drillRowsHtml
 } from "../ui.js";
 import { answer, EXAMPLES } from "../ask.js";
+import { openAskStage } from "../askstage.js";
 import { barChart, donutChart, CATEGORY_COLORS } from "../charts.js";
-import { logoFor } from "../logos.js";
-import { greeting, prefs, getLayout, pins as pinStore } from "../prefs.js";
+import { logoFor, dnaAttrs } from "../logos.js";
+import { greeting, prefs, getLayout, pins as pinStore, setMood } from "../prefs.js";
 import { notes, courses } from "../db.js";
 
 const GOAL_LABELS = {
@@ -108,6 +109,17 @@ export async function render(view) {
     return { g, pct, good, isCap, current, target, unit, fmtVal };
   });
 
+  // Ζωντανό χρώμα: ο τόνος της εφαρμογής γέρνει προς πράσινο όσο είσαι άνετα
+  // και προς κεχριμπάρι όσο πλησιάζεις τα όρια. Μετράει ο χειρότερος στόχος.
+  const clamp = v => Math.max(-1, Math.min(1, v));
+  const moods = goalRows.filter(r => r.target > 0).map(({ isCap, current, target }) => {
+    const ratio = current / target;
+    return isCap ? clamp((0.8 - ratio) / 0.4) : clamp((ratio - 0.5) / 0.5);
+  });
+  if (moods.length) setMood(Math.min(...moods));
+  else if (finItems.length && monthIn > 0) setMood(clamp(((monthIn - monthOut - monthly) / monthIn - 0.15) / 0.35));
+  else setMood(0);
+
   // Καρφιτσωμένα: ό,τι έχεις σημαδέψει, με σύνδεσμο στη σελίδα του
   const pinned = pinList.map(p => {
     if (p.kind === "subscription") {
@@ -132,7 +144,7 @@ export async function render(view) {
     <h3>${icons.bookmark} Καρφιτσωμένα</h3>
     <div class="list">
       ${pinned.map(x => `<a class="card" href="${x.href}" style="padding:10px 14px">
-        <div class="logo logo-sm" style="--logo:${x.color};background:${x.color}">${x.icon}</div>
+        <div class="logo logo-sm" ${dnaAttrs({ name: x.title }, `--logo:${x.color};background:${x.color};`)}>${x.icon}</div>
         <div class="card-main">
           <div class="name">${escapeHtml(x.title)}</div>
           <div class="meta">${escapeHtml(x.meta || "")}</div>
@@ -183,7 +195,7 @@ export async function render(view) {
           const cls = days === 0 ? "today" : days <= 7 ? "soon" : "ok";
           const txt = days === 0 ? "Σήμερα" : days === 1 ? "Αύριο" : fmtDateShort(d);
           return `<div class="card" style="padding:10px 14px">
-            <div class="logo logo-sm" style="--logo:${s.color};background:${s.color}">${logoFor(s)}</div>
+            <div class="logo logo-sm" ${dnaAttrs(s, `--logo:${s.color};background:${s.color};`)}>${logoFor(s)}</div>
             <div class="card-main"><div class="name">${escapeHtml(s.name)}${isInTrial(s) ? ` <span class="badge badge-trial">ΛΗΞΗ ΔΟΚΙΜΗΣ</span>` : ""}</div></div>
             <div class="card-right" style="width:auto;order:0;display:block;text-align:right">
               <div class="price" style="font-size:14px">${fmt(myShare(s))}</div>
@@ -279,9 +291,12 @@ export async function render(view) {
       if (/βαθμ|μέσο|μεσο|μαθημ/i.test(question) && !courseCache.length) {
         courseCache = await courses.list().catch(() => []);
       }
-      const a = answer(question, {
+      const ask = q => answer(q, {
         subs, todos: todoItems, events: evItems, finance: finItems, courses: courseCache
       });
+      const a = ask(question);
+      // Η απάντηση παίρνει πλήρη οθόνη· η κάρτα κρατάει το κείμενο για μετά
+      openAskStage(question, a, ask);
       out.classList.remove("hidden");
       out.innerHTML = `<p class="ask-text">${escapeHtml(a.text)}</p>${a.rows?.length ? drillRowsHtml(a.rows) : ""}`;
     };

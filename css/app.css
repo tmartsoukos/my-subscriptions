@@ -63,9 +63,12 @@
   --elev-2: 0 8px 24px -10px rgba(16, 24, 40, .22);
   --elev-3: 0 24px 60px -14px rgba(16, 24, 40, .28);
 }
-:root[data-theme="light"] body {
-  background-image: radial-gradient(900px 460px at 85% -10%, rgba(37,99,235,.10), transparent),
-                    radial-gradient(700px 380px at -10% 25%, rgba(109,92,240,.08), transparent);
+:root[data-theme="light"] body::before {
+  background-image: radial-gradient(820px 470px at 18% 84%, var(--mood-a, transparent), transparent 60%),
+                    radial-gradient(700px 420px at 92% 44%, var(--mood-b, transparent), transparent 58%),
+                    radial-gradient(900px 460px at 30% 22%, rgba(37,99,235,.13), transparent 62%),
+                    radial-gradient(700px 380px at 74% 68%, rgba(109,92,240,.11), transparent 60%),
+                    radial-gradient(620px 420px at 88% 12%, rgba(20,163,184,.08), transparent 58%);
 }
 :root[data-theme="light"] .note-card { border-color: rgba(0,0,0,.12); }
 :root[data-theme="light"] .tabbar { background: rgba(255,255,255,.92); }
@@ -91,8 +94,6 @@ html { color-scheme: dark; }
 body {
   /* longhands (όχι shorthand με var) ώστε η αλλαγή θέματος να εφαρμόζεται αξιόπιστα */
   background-color: var(--bg);
-  background-image: radial-gradient(1000px 500px at 80% -10%, rgba(59,130,246,.10), transparent),
-                    radial-gradient(800px 400px at -10% 30%, rgba(124,108,246,.08), transparent);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
   font-size: var(--fs-base);
@@ -100,6 +101,30 @@ body {
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* ---- Ζωντανό φόντο ----
+   Οι κηλίδες φωτός μετακινούνται αργά σε βρόχο. Το ψευδοστοιχείο κάθεται πίσω από
+   το περιεχόμενο (το φόντο του body περνάει στον καμβά, οπότε δεν το σκεπάζει). */
+body::before {
+  content: ""; position: fixed; inset: -25%; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(820px 520px at 18% 84%, var(--mood-a, transparent), transparent 60%),
+                    radial-gradient(700px 460px at 92% 44%, var(--mood-b, transparent), transparent 58%),
+                    radial-gradient(900px 520px at 28% 20%, rgba(59,130,246,.16), transparent 62%),
+                    radial-gradient(760px 460px at 72% 70%, rgba(124,108,246,.14), transparent 60%),
+                    radial-gradient(680px 440px at 86% 14%, rgba(20,163,184,.10), transparent 58%);
+  transition: background-image var(--dur-slow) var(--ease-out);
+  animation: meshDrift 46s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes meshDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(2.2%, -1.8%, 0) scale(1.06); }
+  66%  { transform: translate3d(-1.6%, 2.4%, 0) scale(1.03); }
+  100% { transform: translate3d(1.2%, 1.4%, 0) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
 }
 
 /* Αριθμοί σταθερού πλάτους: οι στήλες δεν «χοροπηδάνε» όταν αλλάζουν ψηφία */
@@ -281,6 +306,55 @@ main#view {
 .ask-out.hidden { display: none; }
 .ask-text { font-size: var(--fs-md); line-height: 1.45; margin-bottom: 10px; }
 
+/* ---- Το σκηνικό της απάντησης ---- */
+.ask-stage {
+  position: fixed; inset: 0; z-index: 150;
+  display: flex; flex-direction: column;
+  background: rgba(4, 8, 22, .72);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  backdrop-filter: blur(30px) saturate(150%);
+  opacity: 0; transition: opacity var(--dur) var(--ease-out);
+  padding-top: env(safe-area-inset-top);
+}
+.ask-stage.open { opacity: 1; }
+:root[data-theme="light"] .ask-stage { background: rgba(244, 246, 251, .78); }
+.ask-stage-close { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; z-index: 2; }
+.ask-stage-scroll { flex: 1; overflow-y: auto; display: flex; align-items: center; }
+.ask-stage-inner {
+  width: 100%; max-width: 620px; margin: 0 auto; padding: 64px var(--space-6) var(--space-6);
+}
+.ask-q { color: var(--muted); font-size: var(--fs-sm); margin-bottom: var(--space-3); }
+.ask-a {
+  font-size: 26px; line-height: 1.32; font-weight: 600; letter-spacing: -0.015em;
+  min-height: 1.32em; margin-bottom: var(--space-5);
+}
+/* Δείκτης γραφομηχανής όσο γράφεται η απάντηση */
+.ask-a.typing::after {
+  content: ""; display: inline-block; width: 2px; height: .95em;
+  background: var(--accent); margin-left: 3px; vertical-align: -2px;
+  animation: askCaret .9s steps(1) infinite;
+}
+@keyframes askCaret { 50% { opacity: 0; } }
+.ask-rows { opacity: 0; transform: translateY(10px); transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+.ask-rows.in { opacity: 1; transform: none; }
+.ask-stage-bar {
+  display: flex; gap: 8px; align-items: center;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  max-width: 620px; width: 100%; margin: 0 auto;
+}
+.ask-stage-bar input {
+  flex: 1; min-width: 0;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); padding: 12px 13px; font-size: 16px; font-family: inherit; min-height: 44px;
+}
+.ask-stage-bar input:focus { outline: none; border-color: var(--accent); }
+@media (max-width: 480px) { .ask-a { font-size: 22px; } }
+@media (prefers-reduced-motion: reduce) {
+  .ask-stage, .ask-rows { transition: none; }
+  .ask-a.typing::after { animation: none; }
+}
+
 /* ============ Κάρτες λίστας ============ */
 .list { display: flex; flex-direction: column; gap: var(--space-3); }
 .card {
@@ -306,6 +380,30 @@ main#view {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(155deg, rgba(255,255,255,.30), rgba(255,255,255,.04) 52%, rgba(0,0,0,.22));
 }
+/* Υπογραφή σχεδίου: μοτίβο που προκύπτει από το όνομα της συνδρομής */
+.logo[data-dna]::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  opacity: .17; mix-blend-mode: overlay;
+}
+.logo[data-dna="1"]::before {
+  background-image: repeating-linear-gradient(var(--dna-rot, 45deg),
+    rgba(255,255,255,.9) 0 1px, transparent 1px var(--dna-sz, 6px));
+}
+.logo[data-dna="2"]::before {
+  background-image: radial-gradient(rgba(255,255,255,.9) 1px, transparent 1.4px);
+  background-size: var(--dna-sz, 6px) var(--dna-sz, 6px);
+}
+.logo[data-dna="3"]::before {
+  background-image: repeating-radial-gradient(circle at 30% 25%,
+    rgba(255,255,255,.85) 0 1px, transparent 1px var(--dna-sz, 6px));
+}
+.logo[data-dna="4"]::before {
+  background-image: repeating-linear-gradient(var(--dna-rot, 45deg),
+      rgba(255,255,255,.75) 0 1px, transparent 1px var(--dna-sz, 6px)),
+    repeating-linear-gradient(calc(var(--dna-rot, 45deg) + 90deg),
+      rgba(255,255,255,.75) 0 1px, transparent 1px var(--dna-sz, 6px));
+}
+:root[data-theme="light"] .logo[data-dna]::before { opacity: .22; mix-blend-mode: soft-light; }
 .logo svg { width: 24px; height: 24px; position: relative; z-index: 1;
   filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.28)); }
 :root[data-theme="light"] .logo::after {
@@ -711,16 +809,32 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 
 /* ============ Modal ============ */
 .overlay {
-  position: fixed; inset: 0; background: rgba(2, 6, 18, .72);
+  position: fixed; inset: 0; background: rgba(2, 6, 18, .62);
   display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
 }
 .modal {
-  background: var(--bg-raised); border: 1px solid var(--border-strong);
+  background-color: var(--bg-raised);
+  /* Λεπτή διάθλαση στο πάνω άκρο: το φύλλο μοιάζει με γυαλί, όχι με χαρτόνι.
+     Το background δεν κυλάει με το περιεχόμενο, άρα η γραμμή φωτός μένει στη θέση της. */
+  background-image: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 130px);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius); width: 100%; max-width: 460px;
   max-height: 90dvh; overflow-y: auto;
-  box-shadow: var(--elev-3), var(--glow);
+  box-shadow: var(--elev-3), var(--glow), inset 0 1px 0 rgba(255,255,255,.16);
   animation: pop var(--dur-fast) var(--ease-out) ease-out;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) and (background: color-mix(in srgb, red 50%, transparent)) {
+  .modal {
+    background-color: color-mix(in srgb, var(--bg-raised) 74%, transparent);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+  }
+}
+:root[data-theme="light"] .modal {
+  background-image: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0) 130px);
+  box-shadow: var(--elev-3), inset 0 1px 0 rgba(255,255,255,.9);
 }
 @keyframes pop { from { transform: scale(.96); opacity: 0; } }
 .sheet-handle { display: none; }
@@ -795,6 +909,7 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
     max-width: 100%; width: 100%;
     border-radius: 22px 22px 0 0;
     border-left: none; border-right: none; border-bottom: none;
+    border-top: 1px solid rgba(255, 255, 255, .18);
     max-height: 92dvh;
     padding-bottom: env(safe-area-inset-bottom);
     animation: sheetUp var(--dur-slow) var(--ease-spring);

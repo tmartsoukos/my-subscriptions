@@ -58,3 +58,29 @@ export function logoFor(sub) {
   }
   return CATEGORY_ICONS[sub.category] || CATEGORY_ICONS.other;
 }
+
+// ---- Υπογραφή σχεδίου ----
+// Κάθε συνδρομή αποκτά δικό της μοτίβο πίσω από το λογότυπο, σταθερό για το όνομά της.
+// Δεν το διαλέγει ο χρήστης· προκύπτει από hash, άρα το ίδιο όνομα δίνει πάντα το ίδιο σχέδιο.
+function hash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+export function dna(name) {
+  const h = hash(normalize(name || "?"));
+  return {
+    variant: (h % 4) + 1,
+    style: `--dna-rot:${h % 180}deg;--dna-sz:${5 + (h >> 4) % 5}px`
+  };
+}
+
+// Έτοιμα attributes για το <div class="logo">
+export function dnaAttrs(sub, extraStyle = "") {
+  const d = dna(sub.name);
+  return `data-dna="${d.variant}" style="${extraStyle}${d.style}"`;
+}

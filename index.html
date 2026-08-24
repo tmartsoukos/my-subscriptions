@@ -49,6 +49,12 @@
     var a = accents[localStorage.getItem("pref:accent") || "blue"] || accents.blue;
     var c1 = eff === "light" ? a[2] : a[0], c2 = eff === "light" ? a[3] : a[1];
     var rs = document.documentElement.style;
+    // Ζωντανό φως: το φόντο ζεσταίνει ή δροσίζει ανάλογα με τους στόχους
+    var mood = localStorage.getItem("pref:moodon") !== "0" ? Number(localStorage.getItem("pref:mood")) || 0 : 0;
+    var mrgb = mood >= 0 ? "34, 176, 125" : "224, 145, 47";
+    var ma = Math.min(Math.abs(mood), 1) * (eff === "light" ? 0.13 : 0.17);
+    rs.setProperty("--mood-a", "rgba(" + mrgb + ", " + ma.toFixed(3) + ")");
+    rs.setProperty("--mood-b", "rgba(" + mrgb + ", " + (ma * 0.65).toFixed(3) + ")");
     rs.setProperty("--accent", c1);
     rs.setProperty("--accent2", c2);
     rs.setProperty("--accent-grad", "linear-gradient(135deg, " + c1 + ", " + c2 + ")");

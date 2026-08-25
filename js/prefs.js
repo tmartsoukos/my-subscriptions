@@ -32,6 +32,7 @@ export const DEFAULT_TABS = ["dashboard", "finance", "todos", "calendar", "more"
 
 // Κάρτες της αρχικής, με τη σειρά που εμφανίζονται εξ ορισμού
 export const DASH_CARDS = {
+  hero:      "Κύριος αριθμός",
   pins:      "Καρφιτσωμένα",
   stats:     "Στατιστικά",
   ask:       "Ρώτα με",
@@ -42,6 +43,8 @@ export const DASH_CARDS = {
   debts:     "Μου χρωστάνε"
 };
 export const DEFAULT_LAYOUT = Object.keys(DASH_CARDS).map(id => ({ id, on: true }));
+// Κάρτες που, όταν προστίθενται σε παλιά διάταξη, ανήκουν στην κορυφή και όχι στο τέλος
+const NEW_AT_TOP = new Set(["hero"]);
 
 export const customCategories = store("custom_categories", "created_at");
 export const pins = store("pins", "sort");
@@ -83,7 +86,9 @@ export function getLayout() {
       const known = l.filter(x => DASH_CARDS[x.id]);
       // Νέες κάρτες που δεν υπάρχουν στην αποθηκευμένη διάταξη μπαίνουν στο τέλος
       for (const id of Object.keys(DASH_CARDS)) {
-        if (!known.some(x => x.id === id)) known.push({ id, on: true });
+        if (known.some(x => x.id === id)) continue;
+        if (NEW_AT_TOP.has(id)) known.unshift({ id, on: true });
+        else known.push({ id, on: true });
       }
       return known;
     }

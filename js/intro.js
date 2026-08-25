@@ -1,19 +1,8 @@
-// Σήμα ανοίγματος: μία φορά την ημέρα, το σήμα της εφαρμογής συναρμολογείται πριν
-// φανεί το περιεχόμενο. Όχι σε κάθε αλλαγή σελίδας — θα κούραζε μέσα στην ίδια μέρα.
-const KEY = "intro:last";
-
-function todayIso() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-
-// Επιστρέφει true μόνο την πρώτη φορά κάθε ημέρα (και το σημειώνει αμέσως)
-export function shouldPlayIntro() {
-  const iso = todayIso();
-  if (localStorage.getItem(KEY) === iso) return false;
-  localStorage.setItem(KEY, iso);
-  return true;
-}
+// Σήμα ανοίγματος: το σήμα της εφαρμογής συναρμολογείται ενώ φορτώνουν τα δεδομένα,
+// και φεύγει μόλις η πρώτη σελίδα είναι έτοιμη. Παίζει σε κάθε άνοιγμα, όχι σε κάθε
+// αλλαγή σελίδας — ο σκελετός φόρτωσης μένει από κάτω και δεν προλαβαίνει να φανεί.
+const MIN_MS = 780;     // ελάχιστος χρόνος στην οθόνη, ώστε να μην τρεμοπαίζει
+const MAX_MS = 5000;    // δίχτυ ασφαλείας αν το φόρτωμα κολλήσει
 
 function initials() {
   const n = (localStorage.getItem("pref:name") || "").trim();
@@ -22,10 +11,8 @@ function initials() {
   return ((parts[0][0] || "") + (parts[1]?.[0] || "")).toUpperCase();
 }
 
+// Επιστρέφει συνάρτηση που κλείνει το σήμα (σεβόμενη τον ελάχιστο χρόνο)
 export function playIntro() {
-  if (!shouldPlayIntro()) return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
   const el = document.createElement("div");
   el.className = "intro";
   el.setAttribute("aria-hidden", "true");
@@ -34,8 +21,16 @@ export function playIntro() {
     <p class="intro-word">Το Dashboard μου</p>`;
   document.body.appendChild(el);
 
-  setTimeout(() => {
+  const startedAt = performance.now();
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(guard);
     el.classList.add("out");
     setTimeout(() => el.remove(), 400);
-  }, 820);
+  };
+  const guard = setTimeout(close, MAX_MS);
+
+  return () => setTimeout(close, Math.max(0, MIN_MS - (performance.now() - startedAt)));
 }

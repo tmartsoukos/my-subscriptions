@@ -53,12 +53,13 @@ async function showApp() {
   app.classList.remove("hidden");
   if (!appStarted) {
     appStarted = true;
-    playIntro();                 // μία φορά την ημέρα, κρύβει και τον σκελετό φόρτωσης
+    const introDone = playIntro();   // μένει στην οθόνη όσο φορτώνει η πρώτη σελίδα
     await loadPrefs();
     paintTabs(icons);
     if (!location.hash) location.hash = "#/" + getStartRoute();
-    router.start();
+    await router.start();
     initScrollTop();
+    introDone();
   } else {
     router.render();
   }

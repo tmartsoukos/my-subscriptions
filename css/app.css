@@ -224,6 +224,20 @@ main#view {
 /* ============ Τίτλοι & sections ============ */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); flex-wrap: wrap; }
 .page-head h1 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; }
+
+/* Υδατογράφημα ενότητας: το εικονίδιο τεράστιο και σχεδόν αόρατο πίσω από τον τίτλο.
+   Ζει έξω από το #view, οπότε δεν χάνεται όταν μια σελίδα ξαναγράφεται. */
+.main-col { position: relative; }
+.page-mark {
+  position: absolute; top: -14px; right: 8px; z-index: 0;
+  width: 210px; height: 210px; color: var(--text); opacity: .035;
+  pointer-events: none; user-select: none;
+}
+.page-mark svg { width: 100%; height: 100%; stroke-width: .9; }
+main#view { position: relative; z-index: 1; }
+@media (max-width: 899px) {
+  .page-mark { width: 150px; height: 150px; top: -6px; right: 0; }
+}
 .section-title { font-size: var(--fs-sm); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: var(--space-6) 0 var(--space-3); font-weight: 600; }
 
 /* ============ Stat cards ============ */
@@ -241,6 +255,32 @@ main#view {
 .stat .label { color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; font-weight: 600; }
 .stat .value { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
 .stat .value small { font-size: var(--fs-sm); color: var(--muted); font-weight: 500; letter-spacing: 0; }
+
+/* ---- Κύριος αριθμός: το κέντρο βάρους της αρχικής ---- */
+.hero { padding: var(--space-3) 0 var(--space-5); position: relative; }
+.hero-label {
+  color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase;
+  letter-spacing: .08em; font-weight: 600; margin-bottom: 4px;
+}
+.hero-value {
+  font-size: clamp(38px, 11vw, 56px); font-weight: 700;
+  letter-spacing: -0.035em; line-height: 1.05;
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+}
+.hero-sub { color: var(--muted); font-size: var(--fs-sm); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hero-delta {
+  font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 2px 8px; border-radius: 999px; font-size: 12.5px;
+}
+.hero-delta.up { color: var(--ok); background: rgba(63, 185, 80, .13); }
+.hero-delta.down { color: var(--warn); background: rgba(227, 179, 65, .13); }
+.hero.drillable { cursor: pointer; }
+.hero.drillable::after {
+  content: ""; position: absolute; right: 4px; top: 26px;
+  width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg); opacity: .5;
+}
+.hero.drillable:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius-sm); }
 
 /* Στατιστικό που εξηγεί από τι φτιάχτηκε */
 .stat.drillable { cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }

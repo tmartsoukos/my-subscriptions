@@ -56,6 +56,15 @@ export async function render(view) {
   const monthIn = monthEntries.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
   const monthOut = monthEntries.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
 
+  // Προηγούμενος μήνας, για τη σύγκριση του κύριου αριθμού.
+  // Και στους δύο μήνες αφαιρείται το ίδιο κόστος συνδρομών, οπότε η διαφορά
+  // εκφράζει καθαρά το τι μπήκε και τι βγήκε.
+  const prevFrom = isoLocal(new Date(today().getFullYear(), today().getMonth() - 1, 1));
+  const prevTo = isoLocal(new Date(today().getFullYear(), today().getMonth(), 0));
+  const prevEntries = finItems.filter(e => e.entry_date >= prevFrom && e.entry_date <= prevTo);
+  const prevIn = prevEntries.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
+  const prevOut = prevEntries.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
+
   const trials = subs.filter(isInTrial);
   const monthly = subs.filter(s => !isInTrial(s)).reduce((s, x) => s + monthlyCost(x), 0);
   const pendingTodos = todoItems.filter(t => !t.done);
@@ -153,7 +162,39 @@ export async function render(view) {
     </div>
   </div>` : "";
 
+  // ---- Κύριος αριθμός: ένα νούμερο με βάρος, αντί για επτά ισοδύναμα ----
+  const balance = monthIn - monthOut - monthly;
+  const prevBalance = prevIn - prevOut - monthly;
+  const daysLeft = new Date(today().getFullYear(), today().getMonth() + 1, 0).getDate() - today().getDate();
+  const hasFinance = finItems.length > 0;
+  const heroOn = getLayout().some(x => x.id === "hero" && x.on);
+
+  let deltaHtml = "";
+  if (hasFinance && prevEntries.length && Math.abs(prevBalance) > 0.5) {
+    const pct = Math.round((balance - prevBalance) / Math.abs(prevBalance) * 100);
+    if (Math.abs(pct) >= 1) {
+      deltaHtml = `<span class="hero-delta ${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "+" : ""}${pct}%</span>
+        <span>από τον προηγούμενο μήνα</span>`;
+    }
+  }
+
+  const heroBlock = hasFinance
+    ? `<div class="hero" data-drill="balance">
+        <div class="hero-label">Υπόλοιπο μήνα</div>
+        <div class="hero-value ${balance >= 0 ? "amount-in" : "amount-out"}">${fmt(balance)}</div>
+        <div class="hero-sub">${deltaHtml}${deltaHtml ? " · " : ""}${
+          daysLeft === 0 ? "τελευταία μέρα του μήνα" : `απομένουν ${daysLeft} ${daysLeft === 1 ? "ημέρα" : "ημέρες"}`}</div>
+      </div>`
+    : `<div class="hero" data-drill="monthly">
+        <div class="hero-label">Μηνιαίο κόστος</div>
+        <div class="hero-value">${fmt(monthly)}</div>
+        <div class="hero-sub">${subs.filter(s => !isInTrial(s)).length} ${
+          subs.filter(s => !isInTrial(s)).length === 1 ? "συνδρομή" : "συνδρομές"}${
+          next ? ` · επόμενη ${escapeHtml(next.name)} ${fmtDateShort(nextDue(next))}` : ""}</div>
+      </div>`;
+
   const blocks = {
+    hero: heroBlock,
     stats: `<div class="stats">
       <div class="stat" data-drill="monthly"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
       <div class="stat" data-drill="next"><div class="label">Επόμενη πληρωμή</div><div class="value" style="font-size:16px">${next ? escapeHtml(next.name) + " · " + fmtDateShort(nextDue(next)) : "—"}</div></div>
@@ -161,8 +202,8 @@ export async function render(view) {
       <div class="stat" data-drill="events"><div class="label">Υποχρεώσεις 7 ημερών</div><div class="value">${weekEvents.length}</div></div>
       ${owedTotal > 0 ? `<div class="stat" data-drill="owed"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owedTotal)}</div></div>` : ""}
       ${trials.length ? `<div class="stat" data-drill="trials"><div class="label">Σε δοκιμή</div><div class="value">${trials.length}</div></div>` : ""}
-      ${finItems.length ? `<div class="stat" data-drill="balance"><div class="label">Υπόλοιπο μήνα</div>
-        <div class="value ${monthIn - monthOut - monthly >= 0 ? "amount-in" : "amount-out"}">${fmt(monthIn - monthOut - monthly)}</div></div>` : ""}
+      ${hasFinance && !heroOn ? `<div class="stat" data-drill="balance"><div class="label">Υπόλοιπο μήνα</div>
+        <div class="value ${balance >= 0 ? "amount-in" : "amount-out"}">${fmt(balance)}</div></div>` : ""}
     </div>`,
     goals: `${goalRows.length ? `<div class="chart-card goals-card">
       <h3>Στόχοι</h3>
@@ -404,7 +445,7 @@ export async function render(view) {
     }),
     balance: () => ({
       title: "Υπόλοιπο μήνα",
-      total: fmt(monthIn - monthOut - monthly), totalLabel: "Απομένουν",
+      total: fmt(balance), totalLabel: "Απομένουν",
       rows: [
         { label: "Έσοδα", value: "+" + fmt(monthIn), cls: "amount-in", meta: (n => `${n} ${n === 1 ? "εγγραφή" : "εγγραφές"}`)(monthEntries.filter(e => e.kind === "income").length) },
         { label: "Έξοδα", value: "−" + fmt(monthOut), cls: "amount-out", meta: (n => `${n} ${n === 1 ? "εγγραφή" : "εγγραφές"}`)(monthEntries.filter(e => e.kind === "expense").length) },

@@ -1,6 +1,7 @@
 // Απλός hash router: #/dashboard, #/subs, ...
 import { skeletonFor } from "./skeleton.js";
-import { getTabs } from "./prefs.js";
+import { getTabs, SECTIONS } from "./prefs.js";
+import { icons } from "./ui.js";
 
 const routes = {};
 let defaultRoute = "dashboard";
@@ -41,6 +42,13 @@ export async function render() {
   const dir = lastRoute && ORDER.indexOf(name) < ORDER.indexOf(lastRoute) ? "back" : "fwd";
   lastRoute = name;
 
+  // Υδατογράφημα ενότητας: το εικονίδιο τεράστιο και σχεδόν αόρατο πίσω από τον τίτλο
+  const mark = document.getElementById("pageMark");
+  if (mark) {
+    const sec = SECTIONS[name] || { icon: "settings" };
+    mark.innerHTML = icons[sec.icon] || "";
+  }
+
   // Σκελετός με το σχήμα του περιεχομένου αντί για σπίναρ στο κενό
   view.innerHTML = skeletonFor(name);
 
@@ -61,5 +69,5 @@ export async function render() {
 
 export function start() {
   window.addEventListener("hashchange", render);
-  render();
+  return render();
 }

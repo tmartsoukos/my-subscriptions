@@ -40,6 +40,9 @@
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
   --space-5: 20px; --space-6: 24px; --space-8: 32px;
   --sidebar-w: 232px;
+  /* Κόκκος: σπάει την ψηφιακή επιπεδότητα των διαβαθμίσεων. Ένα πλακίδιο θορύβου,
+     φτιαγμένο επί τόπου με feTurbulence — κανένα εξωτερικό αρχείο. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ---- Φωτεινό θέμα ---- */
@@ -126,6 +129,13 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   body::before { animation: none; }
 }
+/* Ο κόκκος μένει ακίνητος πάνω από τις κηλίδες που κινούνται */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: var(--grain); background-repeat: repeat;
+  opacity: .05;
+}
+:root[data-theme="light"] body::after { opacity: .035; }
 
 /* Αριθμοί σταθερού πλάτους: οι στήλες δεν «χοροπηδάνε» όταν αλλάζουν ψηφία */
 .stat .value, .price, .cycle, .due, .todo-due, .chip, .member-chip, .acct,
@@ -317,6 +327,11 @@ main#view {
   padding-top: env(safe-area-inset-top);
 }
 .ask-stage.open { opacity: 1; }
+.ask-stage::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image: var(--grain); opacity: .05;
+}
+.ask-stage-scroll, .ask-stage-bar { position: relative; z-index: 1; }
 :root[data-theme="light"] .ask-stage { background: rgba(244, 246, 251, .78); }
 .ask-stage-close { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; z-index: 2; }
 .ask-stage-scroll { flex: 1; overflow-y: auto; display: flex; align-items: center; }
@@ -888,6 +903,42 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 .pass-wrap input { padding-right: 48px; }
 .pass-wrap .icon-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
 
+/* ============ Σήμα ανοίγματος ============ */
+.intro {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background-color: var(--bg);
+  transition: opacity 380ms var(--ease-out), transform 380ms var(--ease-out);
+}
+.intro.out { opacity: 0; transform: scale(1.05); pointer-events: none; }
+.intro-mark {
+  width: 76px; height: 76px; border-radius: 22px; position: relative;
+  background: var(--accent-grad); box-shadow: var(--glow), inset 0 1px 0 rgba(255,255,255,.3);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 27px; font-weight: 700; letter-spacing: .01em;
+  animation: introMark 640ms var(--ease-spring) both;
+}
+.intro-mark span { animation: introFade 480ms var(--ease-out) 200ms both; }
+/* Δύο δαχτυλίδια που ανοίγουν και σβήνουν, σαν χτύπος */
+.intro-mark i {
+  position: absolute; inset: 0; border-radius: inherit;
+  border: 1.5px solid var(--accent); opacity: 0;
+  animation: introRing 1000ms var(--ease-out) both;
+}
+.intro-mark i:nth-child(3) { animation-delay: 200ms; }
+.intro-word {
+  color: var(--muted); font-size: 13.5px; letter-spacing: .05em;
+  animation: introFade 480ms var(--ease-out) 300ms both;
+}
+@keyframes introMark {
+  from { transform: scale(.5) rotate(-10deg); opacity: 0; border-radius: 50%; }
+}
+@keyframes introFade { from { opacity: 0; transform: translateY(7px); } }
+@keyframes introRing {
+  0%   { opacity: .5; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.85); }
+}
+
 /* ============ Ρυθμίσεις ============ */
 .settings-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-5); margin-bottom: var(--space-4); }
 .settings-block h3 { font-size: 15.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
@@ -911,7 +962,8 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
     border-left: none; border-right: none; border-bottom: none;
     border-top: 1px solid rgba(255, 255, 255, .18);
     max-height: 92dvh;
-    padding-bottom: env(safe-area-inset-bottom);
+    margin-bottom: -7px;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 7px);
     animation: sheetUp var(--dur-slow) var(--ease-spring);
     will-change: transform;
   }

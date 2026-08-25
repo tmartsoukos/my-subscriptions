@@ -7,6 +7,7 @@ import { icons, toast } from "./ui.js";
 import { refreshBadge } from "./badge.js";
 import { loadPrefs, getStartRoute, paintTabs } from "./prefs.js";
 import { initScrollTop } from "./scrolltop.js";
+import { playIntro } from "./intro.js";
 import * as router from "./router.js";
 import * as dashboard from "./views/dashboard.js";
 import * as subs from "./views/subscriptions.js";
@@ -52,6 +53,7 @@ async function showApp() {
   app.classList.remove("hidden");
   if (!appStarted) {
     appStarted = true;
+    playIntro();                 // μία φορά την ημέρα, κρύβει και τον σκελετό φόρτωσης
     await loadPrefs();
     paintTabs(icons);
     if (!location.hash) location.hash = "#/" + getStartRoute();

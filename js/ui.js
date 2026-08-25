@@ -276,35 +276,73 @@ function bindSheetDrag(overlay, close) {
   const grip = overlay.querySelector(".sheet-handle");
   const head = overlay.querySelector(".modal-head");
   const CLOSE_AT = 110;
-  let startY = 0, dy = 0, dragging = false, startedAt = 0;
+  const FLING = 0.9;         // px ανά ms προς τα κάτω που αρκούν για κλείσιμο (πραγματικό πέταγμα)
+  const OVERSHOOT = 5;       // πόσο επιτρέπεται να περάσει το φύλλο πάνω από τη θέση ισορροπίας
+  let startY = 0, dy = 0, dragging = false;
+  let lastY = 0, lastT = 0, velocity = 0, raf = 0;
+
+  const scrim = d => `rgba(2, 6, 18, ${Math.max(0.62 - d / 500, 0.2)})`;
 
   const onStart = e => {
     if (e.touches.length !== 1) return;
-    startY = e.touches[0].clientY;
-    dy = 0; dragging = true; startedAt = Date.now();
+    cancelAnimationFrame(raf);
+    startY = lastY = e.touches[0].clientY;
+    lastT = performance.now();
+    dy = 0; velocity = 0; dragging = true;
     modal.style.transition = "none";
   };
   const onMove = e => {
     if (!dragging) return;
-    dy = e.touches[0].clientY - startY;
+    const y = e.touches[0].clientY;
+    const now = performance.now();
+    const dt = now - lastT;
+    if (dt > 0) velocity = (y - lastY) / dt;       // ταχύτητα δαχτύλου, px ανά ms
+    lastY = y; lastT = now;
+    dy = y - startY;
     if (dy < 0) dy = dy / 4;                       // αντίσταση προς τα πάνω
     modal.style.transform = `translateY(${dy}px)`;
-    overlay.style.background = `rgba(2, 6, 18, ${Math.max(0.72 - dy / 500, 0.25)})`;
+    overlay.style.background = scrim(dy);
     if (e.cancelable) e.preventDefault();
   };
+
+  // Επιστροφή με ελατήριο: το φύλλο κρατάει την ορμή του και σταθεροποιείται,
+  // αντί να κόβεται σε σταθερό χρόνο. Έτσι νιώθεται σαν αντικείμενο με μάζα.
+  const settle = () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      modal.style.transform = "";
+      overlay.style.background = "";
+      return;
+    }
+    let x = dy, v = velocity * 16;                 // από px/ms σε px ανά καρέ
+    const step = () => {
+      if (!modal.isConnected) return;              // το φύλλο έκλεισε στο μεταξύ
+      v = (v - x * 0.15) * 0.80;                   // δύναμη επαναφοράς και απόσβεση
+      x = Math.max(x + v, -OVERSHOOT);
+      if (Math.abs(x) < 0.5 && Math.abs(v) < 0.5) {
+        modal.style.transform = "";
+        overlay.style.background = "";
+        return;
+      }
+      modal.style.transform = `translateY(${x}px)`;
+      overlay.style.background = scrim(Math.max(x, 0));
+      raf = requestAnimationFrame(step);
+    };
+    step();
+  };
+
   const onEnd = () => {
     if (!dragging) return;
     dragging = false;
-    const fast = Date.now() - startedAt < 300 && dy > 50;
-    modal.style.transition = "transform .22s ease-out";
-    if (dy > CLOSE_AT || fast) {
+    if (dy > CLOSE_AT || velocity > FLING) {
       haptic("tap");
+      // Όσο πιο δυνατά το πέταξες, τόσο πιο γρήγορα φεύγει
+      const ms = Math.round(Math.max(120, Math.min(260, 230 - velocity * 130)));
+      modal.style.transition = `transform ${ms}ms cubic-bezier(.32,.72,0,1)`;
       modal.style.transform = "translateY(100%)";
       overlay.style.background = "rgba(2, 6, 18, 0)";
-      setTimeout(close, 200);
+      setTimeout(close, ms - 20);
     } else {
-      modal.style.transform = "";
-      overlay.style.background = "";
+      settle();
     }
   };
 

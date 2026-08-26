@@ -61,6 +61,21 @@ export async function render() {
       <button class="btn btn-primary" onclick="location.reload()">Δοκίμασε ξανά</button></div>`;
   }
 
+  // Το υδατογράφημα ξεκινά ακριβώς κάτω από την πραγματική κεφαλίδα της σελίδας —
+  // μετρημένη, όχι υποθετική, γιατί κάποιες σελίδες έχουν δύο κουμπιά που τυλίγονται
+  // σε δεύτερη γραμμή στο κινητό (π.χ. «Με φωνή» + «Νέα εργασία» στις Εργασίες).
+  if (mark) {
+    const head = view.querySelector(".page-head");
+    const mainCol = document.querySelector(".main-col");
+    if (head && mainCol) {
+      const top = head.getBoundingClientRect().bottom - mainCol.getBoundingClientRect().top + 16;
+      mark.style.top = top + "px";
+      mark.style.visibility = "";
+    } else {
+      mark.style.visibility = "hidden"; // σελίδα χωρίς τίτλο (π.χ. επεξεργασία σημείωσης)
+    }
+  }
+
   view.classList.remove("enter-fwd", "enter-back");
   void view.offsetWidth; // επανεκκίνηση της κίνησης
   view.classList.add(dir === "back" ? "enter-back" : "enter-fwd");

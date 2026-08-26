@@ -226,17 +226,24 @@ main#view {
 .page-head h1 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; }
 
 /* Υδατογράφημα ενότητας: το εικονίδιο τεράστιο και σχεδόν αόρατο πίσω από τον τίτλο.
-   Ζει έξω από το #view, οπότε δεν χάνεται όταν μια σελίδα ξαναγράφεται. */
+   Ζει έξω από το #view, οπότε δεν χάνεται όταν μια σελίδα ξαναγράφεται.
+   Το .page-mark-mask κόβει αυστηρά ό,τι ξεφεύγει — έτσι το εικονίδιο δεν μπορεί ποτέ
+   να προεξέχει από την οθόνη, όποια κι αν είναι οι διαστάσεις της συσκευής.
+   Ξεκινά κάτω από την κεφαλίδα της σελίδας (page-head), όχι πάνω της, ώστε να μην
+   περνάει ποτέ πίσω από τον τίτλο ή τα κουμπιά. */
 .main-col { position: relative; }
+.page-mark-mask {
+  position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+}
 .page-mark {
-  position: absolute; top: -14px; right: 8px; z-index: 0;
-  width: 210px; height: 210px; color: var(--text); opacity: .035;
-  pointer-events: none; user-select: none;
+  position: absolute; top: calc(108px + env(safe-area-inset-top)); right: -10px;
+  width: 170px; height: 170px; color: var(--text); opacity: .03;
+  user-select: none;
 }
 .page-mark svg { width: 100%; height: 100%; stroke-width: .9; }
 main#view { position: relative; z-index: 1; }
 @media (max-width: 899px) {
-  .page-mark { width: 150px; height: 150px; top: -6px; right: 0; }
+  .page-mark { top: calc(150px + env(safe-area-inset-top)); right: -14px; width: 120px; height: 120px; }
 }
 .section-title { font-size: var(--fs-sm); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: var(--space-6) 0 var(--space-3); font-weight: 600; }
 
@@ -257,26 +264,50 @@ main#view { position: relative; z-index: 1; }
 .stat .value small { font-size: var(--fs-sm); color: var(--muted); font-weight: 500; letter-spacing: 0; }
 
 /* ---- Κύριος αριθμός: το κέντρο βάρους της αρχικής ---- */
-.hero { padding: var(--space-3) 0 var(--space-5); position: relative; }
+.hero {
+  padding: var(--space-4) var(--space-1) var(--space-6); position: relative; overflow: hidden;
+  border-bottom: 1px solid var(--border); margin-bottom: var(--space-2);
+}
+/* Απαλή λάμψη πίσω από τον αριθμό, στο χρώμα του τόνου — κέντρο βάρους χωρίς κουτί */
+.hero-glow {
+  position: absolute; z-index: -1; pointer-events: none;
+  left: -60px; top: -70px; width: 260px; height: 260px; border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 68%);
+  opacity: .16; filter: blur(6px);
+}
+:root[data-theme="light"] .hero-glow { opacity: .13; }
+.hero-up .hero-glow { background: radial-gradient(circle, var(--ok) 0%, transparent 68%); }
+.hero-down .hero-glow { background: radial-gradient(circle, var(--warn) 0%, transparent 68%); }
+.hero-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.hero-icon {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface2); color: var(--accent);
+}
+.hero-icon svg { width: 14px; height: 14px; }
 .hero-label {
   color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase;
-  letter-spacing: .08em; font-weight: 600; margin-bottom: 4px;
+  letter-spacing: .08em; font-weight: 600;
 }
 .hero-value {
   font-size: clamp(38px, 11vw, 56px); font-weight: 700;
   letter-spacing: -0.035em; line-height: 1.05;
   font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
 }
-.hero-sub { color: var(--muted); font-size: var(--fs-sm); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hero-sub { color: var(--muted); font-size: var(--fs-sm); margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.hero-sub-text { color: var(--muted); }
 .hero-delta {
+  display: inline-flex; align-items: center; gap: 2px;
   font-weight: 700; font-variant-numeric: tabular-nums;
-  padding: 2px 8px; border-radius: 999px; font-size: 12.5px;
+  padding: 2px 9px 2px 6px; border-radius: 999px; font-size: 12.5px;
 }
+.hero-delta svg { width: 12px; height: 12px; stroke-width: 3; }
 .hero-delta.up { color: var(--ok); background: rgba(63, 185, 80, .13); }
 .hero-delta.down { color: var(--warn); background: rgba(227, 179, 65, .13); }
+.hero-delta.down svg { transform: rotate(180deg); }
 .hero.drillable { cursor: pointer; }
 .hero.drillable::after {
-  content: ""; position: absolute; right: 4px; top: 26px;
+  content: ""; position: absolute; right: 4px; top: 30px;
   width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
   transform: rotate(-45deg); opacity: .5;
 }

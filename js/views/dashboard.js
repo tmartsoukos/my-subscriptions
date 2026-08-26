@@ -173,24 +173,27 @@ export async function render(view) {
   if (hasFinance && prevEntries.length && Math.abs(prevBalance) > 0.5) {
     const pct = Math.round((balance - prevBalance) / Math.abs(prevBalance) * 100);
     if (Math.abs(pct) >= 1) {
-      deltaHtml = `<span class="hero-delta ${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "+" : ""}${pct}%</span>
-        <span>από τον προηγούμενο μήνα</span>`;
+      const up = pct >= 0;
+      deltaHtml = `<span class="hero-delta ${up ? "up" : "down"}">${icons.chevronUp}${Math.abs(pct)}%</span>
+        <span class="hero-sub-text">από τον προηγούμενο μήνα</span>`;
     }
   }
+  const daysLeftText = daysLeft === 0 ? "τελευταία μέρα του μήνα" : `απομένουν ${daysLeft} ${daysLeft === 1 ? "ημέρα" : "ημέρες"}`;
 
   const heroBlock = hasFinance
-    ? `<div class="hero" data-drill="balance">
-        <div class="hero-label">Υπόλοιπο μήνα</div>
+    ? `<div class="hero hero-${balance >= 0 ? "up" : "down"}" data-drill="balance">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-top"><span class="hero-icon">${icons.wallet}</span><span class="hero-label">Υπόλοιπο μήνα</span></div>
         <div class="hero-value ${balance >= 0 ? "amount-in" : "amount-out"}">${fmt(balance)}</div>
-        <div class="hero-sub">${deltaHtml}${deltaHtml ? " · " : ""}${
-          daysLeft === 0 ? "τελευταία μέρα του μήνα" : `απομένουν ${daysLeft} ${daysLeft === 1 ? "ημέρα" : "ημέρες"}`}</div>
+        <div class="hero-sub">${deltaHtml}<span class="hero-sub-text">${daysLeftText}</span></div>
       </div>`
     : `<div class="hero" data-drill="monthly">
-        <div class="hero-label">Μηνιαίο κόστος</div>
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-top"><span class="hero-icon">${icons.card}</span><span class="hero-label">Μηνιαίο κόστος</span></div>
         <div class="hero-value">${fmt(monthly)}</div>
-        <div class="hero-sub">${subs.filter(s => !isInTrial(s)).length} ${
+        <div class="hero-sub"><span class="hero-sub-text">${subs.filter(s => !isInTrial(s)).length} ${
           subs.filter(s => !isInTrial(s)).length === 1 ? "συνδρομή" : "συνδρομές"}${
-          next ? ` · επόμενη ${escapeHtml(next.name)} ${fmtDateShort(nextDue(next))}` : ""}</div>
+          next ? ` · επόμενη ${escapeHtml(next.name)} ${fmtDateShort(nextDue(next))}` : ""}</span></div>
       </div>`;
 
   const blocks = {

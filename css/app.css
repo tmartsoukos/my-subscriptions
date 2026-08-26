@@ -225,26 +225,6 @@ main#view {
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); flex-wrap: wrap; }
 .page-head h1 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; }
 
-/* Υδατογράφημα ενότητας: το εικονίδιο τεράστιο και σχεδόν αόρατο πίσω από τον τίτλο.
-   Ζει έξω από το #view, οπότε δεν χάνεται όταν μια σελίδα ξαναγράφεται.
-   Το .page-mark-mask κόβει αυστηρά ό,τι ξεφεύγει — έτσι το εικονίδιο δεν μπορεί ποτέ
-   να προεξέχει από την οθόνη, όποια κι αν είναι οι διαστάσεις της συσκευής.
-   Ξεκινά κάτω από την κεφαλίδα της σελίδας (page-head), όχι πάνω της, ώστε να μην
-   περνάει ποτέ πίσω από τον τίτλο ή τα κουμπιά. */
-.main-col { position: relative; }
-.page-mark-mask {
-  position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
-}
-.page-mark {
-  position: absolute; top: calc(108px + env(safe-area-inset-top)); right: -10px;
-  width: 170px; height: 170px; color: var(--text); opacity: .03;
-  user-select: none;
-}
-.page-mark svg { width: 100%; height: 100%; stroke-width: .9; }
-main#view { position: relative; z-index: 1; }
-@media (max-width: 899px) {
-  .page-mark { top: calc(150px + env(safe-area-inset-top)); right: -14px; width: 120px; height: 120px; }
-}
 .section-title { font-size: var(--fs-sm); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: var(--space-6) 0 var(--space-3); font-weight: 600; }
 
 /* ============ Stat cards ============ */
@@ -619,6 +599,15 @@ main#view { position: relative; z-index: 1; }
   transition: color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
 }
 .mic-btn svg { width: 18px; height: 18px; }
+/* Εκτός πεδίου φόρμας (π.χ. στη σειρά «Ρώτα με») το μικρόφωνο δεν επιπλέει:
+   είναι κανονικό κουμπί της σειράς, δίπλα στο πεδίο που υπαγορεύει. */
+.ask-row .mic-btn, .ask-stage-bar .mic-btn {
+  position: static; flex: 0 0 auto; width: 44px; height: 44px;
+}
+.note-bar-actions .mic-btn {
+  position: static; flex: 0 0 auto; width: 40px; height: 40px;
+  background: none; border: none;
+}
 .mic-btn:hover { color: var(--text); }
 .mic-btn.listening {
   background: var(--danger); border-color: var(--danger); color: #fff;

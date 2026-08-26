@@ -1,7 +1,6 @@
 // Απλός hash router: #/dashboard, #/subs, ...
 import { skeletonFor } from "./skeleton.js";
-import { getTabs, SECTIONS } from "./prefs.js";
-import { icons } from "./ui.js";
+import { getTabs } from "./prefs.js";
 
 const routes = {};
 let defaultRoute = "dashboard";
@@ -42,13 +41,6 @@ export async function render() {
   const dir = lastRoute && ORDER.indexOf(name) < ORDER.indexOf(lastRoute) ? "back" : "fwd";
   lastRoute = name;
 
-  // Υδατογράφημα ενότητας: το εικονίδιο τεράστιο και σχεδόν αόρατο πίσω από τον τίτλο
-  const mark = document.getElementById("pageMark");
-  if (mark) {
-    const sec = SECTIONS[name] || { icon: "settings" };
-    mark.innerHTML = icons[sec.icon] || "";
-  }
-
   // Σκελετός με το σχήμα του περιεχομένου αντί για σπίναρ στο κενό
   view.innerHTML = skeletonFor(name);
 
@@ -59,21 +51,6 @@ export async function render() {
   } catch (e) {
     view.innerHTML = `<div class="empty"><p>Σφάλμα φόρτωσης: ${e.message || e}</p>
       <button class="btn btn-primary" onclick="location.reload()">Δοκίμασε ξανά</button></div>`;
-  }
-
-  // Το υδατογράφημα ξεκινά ακριβώς κάτω από την πραγματική κεφαλίδα της σελίδας —
-  // μετρημένη, όχι υποθετική, γιατί κάποιες σελίδες έχουν δύο κουμπιά που τυλίγονται
-  // σε δεύτερη γραμμή στο κινητό (π.χ. «Με φωνή» + «Νέα εργασία» στις Εργασίες).
-  if (mark) {
-    const head = view.querySelector(".page-head");
-    const mainCol = document.querySelector(".main-col");
-    if (head && mainCol) {
-      const top = head.getBoundingClientRect().bottom - mainCol.getBoundingClientRect().top + 16;
-      mark.style.top = top + "px";
-      mark.style.visibility = "";
-    } else {
-      mark.style.visibility = "hidden"; // σελίδα χωρίς τίτλο (π.χ. επεξεργασία σημείωσης)
-    }
   }
 
   view.classList.remove("enter-fwd", "enter-back");

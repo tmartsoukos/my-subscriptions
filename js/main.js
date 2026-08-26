@@ -9,7 +9,7 @@ import { loadPrefs, getStartRoute, paintTabs } from "./prefs.js";
 import { initScrollTop } from "./scrolltop.js";
 import { playIntro } from "./intro.js";
 import * as router from "./router.js";
-import * as dashboard from "./views/dashboard.js";
+import * as dashboard from "./views/dashboard/index.js";
 import * as subs from "./views/subscriptions.js";
 import * as todosView from "./views/todos.js";
 import * as calendarView from "./views/calendar.js";

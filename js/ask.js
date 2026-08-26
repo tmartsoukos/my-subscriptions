@@ -69,6 +69,26 @@ function entryRows(list, catMap) {
     }));
 }
 
+// ---- Πρόσφατες ερωτήσεις ----
+// Οι τρεις τελευταίες γίνονται κουμπιά, ώστε να μη γράφεις ξανά ό,τι ρωτάς συχνά.
+const RECENT_KEY = "ask:recent";
+const RECENT_MAX = 3;
+
+export function recentQuestions() {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY));
+    return Array.isArray(list) ? list.filter(x => typeof x === "string").slice(0, RECENT_MAX) : [];
+  } catch { return []; }
+}
+
+export function rememberQuestion(question) {
+  const q = (question || "").trim();
+  if (!q) return;
+  const norm = q.toLowerCase();
+  const list = [q, ...recentQuestions().filter(x => x.toLowerCase() !== norm)].slice(0, RECENT_MAX);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+}
+
 export const EXAMPLES = [
   "πόσα ξόδεψα σε φαγητό αυτόν τον μήνα;",
   "πόσα έβγαλα τον περασμένο μήνα;",
@@ -255,6 +275,7 @@ export function answer(question, data = {}) {
   }
 
   return {
+    unknown: true,
     text: "Δεν το κατάλαβα. Δοκίμασε κάτι σαν: " + EXAMPLES.slice(0, 3).map(x => `«${x}»`).join(", ")
   };
 }

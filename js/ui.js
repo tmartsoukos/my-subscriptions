@@ -106,6 +106,7 @@ export const icons = {
   chevronL: svg('<polyline points="15 18 9 12 15 6"/>'),
   chevronR: svg('<polyline points="9 18 15 12 9 6"/>'),
   chevronUp: svg('<polyline points="18 15 12 9 6 15"/>'),
+  clock: svg('<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/>'),
   bell: svg('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
   wallet: svg('<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'),
   chart: svg('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'),
@@ -138,6 +139,29 @@ export function collapseRow(el) {
   el.style.opacity = "0";
   el.style.marginBottom = "-" + getComputedStyle(el.parentElement).gap;
   return new Promise(res => setTimeout(res, 220));
+}
+
+// Μέτρηση από το μηδέν ως την τιμή. Ο αριθμός «χτίζεται» μπροστά σου αντί να εμφανιστεί.
+export function countUp(el, to, format, ms = 620) {
+  if (!el || !Number.isFinite(to)) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = format(to); return; }
+  const t0 = performance.now();
+  let finished = false;
+  const finish = () => { finished = true; el.textContent = format(to); };
+  const step = now => {
+    if (finished) return;
+    // Το χρονόσημα του requestAnimationFrame μπορεί να προηγείται του t0 (αρχή καρέ),
+    // οπότε το p χρειάζεται κατώτατο όριο — αλλιώς ο αριθμός ξεκινά αρνητικός.
+    const p = Math.min(Math.max((now - t0) / ms, 0), 1);
+    const eased = 1 - Math.pow(1 - p, 3);        // γρήγορη αρχή, ήρεμο τέλος
+    el.textContent = format(to * eased);
+    if (p < 1) requestAnimationFrame(step);
+    else finish();
+  };
+  requestAnimationFrame(step);
+  // Δίχτυ: αν τα καρέ σταματήσουν (κρυφή καρτέλα, εξοικονόμηση ενέργειας),
+  // ο αριθμός δεν μένει ποτέ στη μέση της μέτρησης.
+  setTimeout(finish, ms + 150);
 }
 
 // ---- Απτική ανάδραση ----

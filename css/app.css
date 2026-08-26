@@ -363,6 +363,9 @@ main#view {
 .ask-row input:focus { outline: none; border-color: var(--accent); }
 .ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .ask-chips .filter-chip { font-size: 12px; }
+/* Πρόσφατη δική σου ερώτηση, ξεχωρίζει από τα έτοιμα παραδείγματα */
+.ask-chips .chip-recent { border-color: var(--border-strong); color: var(--text); }
+.ask-chips .filter-chip svg { width: 13px; height: 13px; opacity: .55; flex: 0 0 auto; }
 .ask-out { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
 .ask-out.hidden { display: none; }
 .ask-text { font-size: var(--fs-md); line-height: 1.45; margin-bottom: 10px; }

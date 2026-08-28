@@ -966,40 +966,92 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 .pass-wrap input { padding-right: 48px; }
 .pass-wrap .icon-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
 
-/* ============ Σήμα ανοίγματος ============ */
+/* ============ Σήμα ανοίγματος: «Διάφραγμα» ============ */
 .intro {
-  position: fixed; inset: 0; z-index: 300;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  background-color: var(--bg);
-  transition: opacity 380ms var(--ease-out), transform 380ms var(--ease-out);
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  transition: opacity 380ms var(--ease-in), visibility 380ms var(--ease-in);
 }
-.intro.out { opacity: 0; transform: scale(1.05); pointer-events: none; }
+.intro.out { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* Στόχος εξόδου: υπολογίζεται από το intro.js (--ix/--iy/--is) */
 .intro-mark {
-  width: 76px; height: 76px; border-radius: 22px; position: relative;
-  background: var(--accent-grad); box-shadow: var(--glow), inset 0 1px 0 rgba(255,255,255,.3);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 27px; font-weight: 700; letter-spacing: .01em;
-  animation: introMark 640ms var(--ease-spring) both;
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  --ix: 0px; --iy: -40px; --is: .44;
 }
-.intro-mark span { animation: introFade 480ms var(--ease-out) 200ms both; }
-/* Δύο δαχτυλίδια που ανοίγουν και σβήνουν, σαν χτύπος */
+.intro.out .intro-mark {
+  transform: translate(var(--ix), var(--iy)) scale(var(--is));
+  opacity: 0;
+  transition: transform 420ms var(--ease-spring), opacity 420ms var(--ease-spring) 180ms;
+}
+
 .intro-mark i {
-  position: absolute; inset: 0; border-radius: inherit;
-  border: 1.5px solid var(--accent); opacity: 0;
-  animation: introRing 1000ms var(--ease-out) both;
+  position: absolute;
+  border: 2px solid transparent;
+  border-radius: 50%;
 }
-.intro-mark i:nth-child(3) { animation-delay: 200ms; }
-.intro-word {
-  color: var(--muted); font-size: 13.5px; letter-spacing: .05em;
-  animation: introFade 480ms var(--ease-out) 300ms both;
+.intro-mark i:nth-of-type(1) {
+  inset: 0;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  animation: introRing 950ms var(--ease-out) both;
 }
-@keyframes introMark {
-  from { transform: scale(.5) rotate(-10deg); opacity: 0; border-radius: 50%; }
+.intro-mark i:nth-of-type(2) {
+  inset: 9px;
+  border-bottom-color: var(--accent2);
+  border-left-color: var(--accent2);
+  animation: introRingRev 950ms var(--ease-out) both;
 }
-@keyframes introFade { from { opacity: 0; transform: translateY(7px); } }
+.intro-mark b {
+  width: 30px;
+  height: 30px;
+  /* Η τελική μορφή ορίζεται και εδώ: με «λιγότερη κίνηση» το keyframe δεν τρέχει
+     και το σήμα θα έμενε τετράγωνο με κοφτές γωνίες. */
+  border-radius: 9px;
+  background: var(--accent-grad);
+  box-shadow: var(--glow);
+  animation: introCore 520ms var(--ease-spring) 400ms both;
+}
+
 @keyframes introRing {
-  0%   { opacity: .5; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.85); }
+  0%   { transform: rotate(-140deg) scale(1.75); opacity: 0; }
+  30%  { opacity: 1; }
+  78%  { transform: rotate(200deg) scale(1); opacity: 1; }
+  100% { transform: rotate(230deg) scale(.86); opacity: 0; }
+}
+@keyframes introRingRev {
+  0%   { transform: rotate(160deg) scale(1.5); opacity: 0; }
+  34%  { opacity: 1; }
+  78%  { transform: rotate(-180deg) scale(1); opacity: 1; }
+  100% { transform: rotate(-210deg) scale(.82); opacity: 0; }
+}
+@keyframes introCore {
+  0%   { transform: scale(.2) rotate(-25deg); opacity: 0; border-radius: 50%; }
+  70%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; border-radius: 9px; }
+}
+
+/* Το λογότυπο «προσγειώνεται» στο header μόλις φύγει το σήμα */
+.intro-landing [data-avatar] { animation: introLand 320ms var(--ease-spring) both; }
+@keyframes introLand {
+  0%   { opacity: 0; transform: scale(1.35); }
+  60%  { opacity: 1; transform: scale(.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-mark i:nth-of-type(1), .intro-mark i:nth-of-type(2),
+  .intro-mark b, .intro-landing [data-avatar] { animation: none; }
+  .intro-mark i { opacity: .5; }
+  .intro.out .intro-mark { transform: none; transition: opacity 200ms linear; }
 }
 
 /* ============ Ρυθμίσεις ============ */

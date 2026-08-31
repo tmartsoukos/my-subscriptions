@@ -12,5 +12,21 @@
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Νέο έξοδο",
+      "short_name": "Έξοδο",
+      "description": "Καταχώρηση εξόδου χωρίς να ψάξεις στην εφαρμογή",
+      "url": "./#/finance/expense",
+      "icons": [{ "src": "icon-expense.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Νέο έσοδο",
+      "short_name": "Έσοδο",
+      "description": "Καταχώρηση εσόδου χωρίς να ψάξεις στην εφαρμογή",
+      "url": "./#/finance/income",
+      "icons": [{ "src": "icon-income.png", "sizes": "96x96", "type": "image/png" }]
+    }
   ]
 }

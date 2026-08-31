@@ -3,6 +3,7 @@ import {
   escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, today, icons, toast, toastAction,
   openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml, bindMicButtons, collapseRow, bindDrills
 } from "../ui.js";
+import { param } from "../router.js";
 import { barChart, donutChart } from "../charts.js";
 import { heatmap } from "../heatmap.js";
 import { prefs, mergedCategories, categoryColors } from "../prefs.js";
@@ -419,4 +420,16 @@ create policy "own finance" on public.finance_entries
       confirmModal(`Διαγραφή εγγραφής ${fmt(e.amount)};`, () => removeEntry(e));
     }
   };
+
+  // Συντόμευση από την αρχική οθόνη του κινητού: #/finance/expense ή #/finance/income.
+  // Καθαρίζουμε τη διαδρομή πρώτα, ώστε μια ανανέωση ή μια επιστροφή πίσω
+  // να μην ξανανοίγει τη φόρμα. Το replaceState δεν πυροδοτεί hashchange.
+  const shortcut = param();
+  if (shortcut === "income" || shortcut === "expense") {
+    history.replaceState(null, "", "#/finance");
+    // Ο router εστιάζει το #view μόλις τελειώσει το render. Αν ανοίγαμε τη φόρμα
+    // εδώ, θα του έπαιρνε την εστίαση από το πεδίο του ποσού και δεν θα άνοιγε
+    // το πληκτρολόγιο — γι' αυτό περιμένουμε να ολοκληρωθεί πρώτα εκείνος.
+    setTimeout(() => openForm(null, shortcut, rerender), 0);
+  }
 }

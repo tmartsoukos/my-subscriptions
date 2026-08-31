@@ -1,6 +1,6 @@
-const CACHE = "dash-v22";
+const CACHE = "dash-v23";
 const ASSETS = [
-  "./", "index.html", "manifest.json", "icon-192.png", "icon-512.png",
+  "./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-income.png", "icon-expense.png",
   "css/app.css",
   "js/main.js", "js/config.js", "js/db.js", "js/ui.js", "js/router.js", "js/charts.js",
   "js/logos.js", "js/voice.js", "js/markdown.js", "js/theme.js", "js/push.js", "js/skeleton.js",

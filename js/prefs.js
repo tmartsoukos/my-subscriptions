@@ -1,6 +1,7 @@
 // Προσωποποίηση: προφίλ, χρώμα τόνου, αρχική σελίδα, δικές μου κατηγορίες,
 // γρήγορες ενέργειες και στόχοι. Φορτώνονται μία φορά και κρατιούνται στη μνήμη.
-import { sb, store, uploadNoteImage, signedImageUrl } from "./db.js";
+import { sb, store, uploadNoteImage, signedImageUrl, accounts, isMissingTable } from "./db.js";
+import { escapeHtml } from "./ui.js";
 
 export const ACCENTS = {
   blue:   { label: "Μπλε",      c1: "#3b82f6", c2: "#7c6cf6", light1: "#2563eb", light2: "#6d5cf0" },
@@ -57,6 +58,8 @@ let state = {
   quick: [],
   goals: [],
   pins: [],
+  accounts: [],
+  accountsMissing: false,
   avatarUrl: null,
   loaded: false
 };
@@ -247,14 +250,21 @@ export function paintAvatar() {
 // ---- Φόρτωση όλων ----
 export async function loadPrefs() {
   try {
-    const [{ data: profile }, cats, quick, gs, pn] = await Promise.all([
+    const [{ data: profile }, cats, quick, gs, pn, acc] = await Promise.all([
       sb.from("profile").select("*").maybeSingle(),
       customCategories.list().catch(() => []),
       quickActions.list().catch(() => []),
       goals.list().catch(() => []),
-      pins.list().catch(() => [])
+      pins.list().catch(() => []),
+      // Ο πίνακας των λογαριασμών μπορεί να μην έχει δημιουργηθεί ακόμα —
+      // τότε η εφαρμογή δουλεύει ακριβώς όπως πριν, χωρίς λογαριασμούς.
+      accounts.list().then(rows => ({ rows })).catch(e => ({ rows: [], missing: isMissingTable(e) }))
     ]);
-    state = { profile, categories: cats, quick, goals: gs, pins: pn, avatarUrl: null, loaded: true };
+    state = {
+      profile, categories: cats, quick, goals: gs, pins: pn,
+      accounts: acc.rows, accountsMissing: !!acc.missing,
+      avatarUrl: null, loaded: true
+    };
 
     if (profile) {
       // Ο server είναι η πηγή αλήθειας όταν υπάρχει εγγραφή
@@ -290,4 +300,51 @@ export function categoryColors(scope, base) {
   const mine = {};
   for (const c of state.categories.filter(c => c.scope === scope)) mine[c.key] = c.color;
   return { ...base, ...mine };
+}
+
+// ---- Ιεραρχία κατηγοριών ----
+// Μία στάθμη βάθους: «Καφές» κρέμεται από το «Φαγητό». Τα σύνολα και τα
+// γραφήματα αθροίζουν στη ρίζα· η λίστα δείχνει την ακριβή υποκατηγορία.
+export function childrenOf(scope, key) {
+  return state.categories.filter(c => c.scope === scope && c.parent === key);
+}
+export function rootCategory(scope, key) {
+  const c = state.categories.find(x => x.scope === scope && x.key === key);
+  return c?.parent || key;
+}
+export const hasSubcategories = scope => state.categories.some(c => c.scope === scope && c.parent);
+
+// Επιλογές <select> με τις υποκατηγορίες φωλιασμένες κάτω από τον γονέα τους
+export function categoryOptionsHtml(scope, list, selected) {
+  const kids = {};
+  for (const c of state.categories.filter(c => c.scope === scope && c.parent)) {
+    (kids[c.parent] = kids[c.parent] || []).push(c);
+  }
+  const option = (v, l) =>
+    `<option value="${escapeHtml(v)}" ${selected === v ? "selected" : ""}>${escapeHtml(l)}</option>`;
+  return Object.entries(list)
+    .filter(([key]) => rootCategory(scope, key) === key)   // οι υποκατηγορίες μπαίνουν μέσα στον γονέα
+    .map(([key, label]) => {
+      const children = kids[key] || [];
+      if (!children.length) return option(key, label);
+      return `<optgroup label="${escapeHtml(label)}">
+        ${option(key, label)}
+        ${children.map(c => option(c.key, c.label)).join("")}
+      </optgroup>`;
+    }).join("");
+}
+
+// ---- Λογαριασμοί ----
+export const accountList = () => state.accounts || [];
+export const accountById = id => accountList().find(a => a.id === id) || null;
+
+// Ο λογαριασμός που προτείνεται στις φόρμες: ο τελευταίος που χρησιμοποιήθηκε
+const ACCOUNT_KEY = "pref:account";
+export function defaultAccountId() {
+  const saved = localStorage.getItem(ACCOUNT_KEY);
+  if (saved && accountById(saved)) return saved;
+  return accountList()[0]?.id || null;
+}
+export function rememberAccount(id) {
+  if (id) localStorage.setItem(ACCOUNT_KEY, id);
 }

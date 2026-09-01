@@ -1,14 +1,17 @@
 import { getOrCreateIcsToken, regenerateIcsToken, migrateLocalData, sb } from "../db.js";
 import { FUNCTIONS_URL } from "../config.js";
-import { icons, toast, confirmModal, openModal, escapeHtml, fmt, haptic } from "../ui.js";
+import { icons, toast, confirmModal, openModal, escapeHtml, fmt, haptic, CATEGORIES } from "../ui.js";
 import { pushSupported, isIOS, isStandalone, currentSubscription, enablePush, disablePush, getPrefs, savePrefs } from "../push.js";
 import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
 import {
   ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
   uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories,
   SECTIONS, getTabs, setTabs, DASH_CARDS, getLayout, setLayout, pins, getDayStart, setDayStart,
-  moodEnabled, setMoodEnabled
+  moodEnabled, setMoodEnabled, categoryOptionsHtml, mergedCategories, rootCategory
 } from "../prefs.js";
+import { accounts } from "../db.js";
+import { ACCOUNT_KINDS } from "../money.js";
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "./finance.js";
 
 const ROUTES = {
   dashboard: "Επισκόπηση", finance: "Οικονομικά", subs: "Συνδρομές", todos: "Εργασίες",
@@ -141,6 +144,14 @@ export async function render(view) {
     </div>
 
     <div class="settings-block">
+      <h3>${icons.card2} Λογαριασμοί</h3>
+      <p>Πού βρίσκονται τα λεφτά σου: μετρητά, κάρτα, τράπεζα. Το αρχικό υπόλοιπο είναι
+      όσα έχεις εκεί σήμερα — από κει και πέρα το ενημερώνουν οι κινήσεις σου.</p>
+      <div class="mini-list" id="acctList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddAcct">${icons.plus} Νέος λογαριασμός</button>
+    </div>
+
+    <div class="settings-block">
       <h3>${icons.wallet} Γρήγορες ενέργειες</h3>
       <p>Κουμπιά ενός πατήματος στα Οικονομικά — π.χ. «καφές 3€».</p>
       <div class="mini-list" id="quickList"></div>
@@ -156,7 +167,8 @@ export async function render(view) {
 
     <div class="settings-block">
       <h3>${icons.bookmark} Δικές μου κατηγορίες</h3>
-      <p>Προστίθενται στις προεπιλεγμένες, σε έξοδα και συνδρομές.</p>
+      <p>Προστίθενται στις προεπιλεγμένες, σε έξοδα και συνδρομές. Μια κατηγορία μπορεί να
+      κρέμεται από μια άλλη — π.χ. «Καφές» κάτω από το «Φαγητό». Τα σύνολα αθροίζονται στη γονική.</p>
       <div class="mini-list" id="catList"></div>
       <button class="btn btn-ghost btn-sm" id="btnAddCat">${icons.plus} Νέα κατηγορία</button>
     </div>
@@ -419,11 +431,29 @@ export async function render(view) {
   // ---- Γρήγορες ενέργειες / στόχοι / κατηγορίες ----
   const drawMini = () => {
     const p = prefs();
-    view.querySelector("#quickList").innerHTML = (p.quick || []).length
-      ? p.quick.map(q => `<div class="mini-row">
-          <span><b>${escapeHtml(q.label)}</b>${q.amount != null ? ` · ${q.kind === "income" ? "+" : "−"}${fmt(q.amount)}` : ""}</span>
-          <button class="icon-btn" data-delquick="${q.id}" aria-label="Διαγραφή">${icons.trash}</button>
+    // Ο πίνακας μπορεί να μην υπάρχει ακόμα — τότε δείχνουμε το migration αντί για λίστα
+    view.querySelector("#acctList").innerHTML = p.accountsMissing
+      ? `<p class="hint">Ο πίνακας δεν υπάρχει ακόμα στη βάση. Τρέξε το
+         <code>supabase/migrations/012_accounts_transfers.sql</code> στο SQL Editor του Supabase.</p>`
+      : (p.accounts || []).length
+      ? p.accounts.map(a => `<div class="mini-row">
+          <span><i class="cat-dot" style="background:${escapeHtml(a.color || "#4c8dff")}"></i>
+            <b>${escapeHtml(a.name)}</b> · ${ACCOUNT_KINDS[a.kind] || "Λογαριασμός"} · αρχικό ${fmt(a.start_balance)}</span>
+          <button class="icon-btn" data-editacct="${a.id}" aria-label="Επεξεργασία">${icons.edit}</button>
+          <button class="icon-btn" data-delacct="${a.id}" aria-label="Διαγραφή">${icons.trash}</button>
         </div>`).join("")
+      : `<p class="hint">Κανένας ακόμα. Χωρίς λογαριασμούς η εφαρμογή μετράει μόνο ροή, όχι πόσα έχεις.</p>`;
+
+    view.querySelector("#quickList").innerHTML = (p.quick || []).length
+      ? p.quick.map(q => {
+          const list = q.kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+          const catLabel = q.category ? (mergedCategories(q.kind, list)[q.category] || "") : "";
+          return `<div class="mini-row">
+            <span><b>${escapeHtml(q.label)}</b>${q.amount != null ? ` · ${q.kind === "income" ? "+" : "−"}${fmt(q.amount)}` : ""}${
+              catLabel ? ` · ${escapeHtml(catLabel)}` : ""}</span>
+            <button class="icon-btn" data-delquick="${q.id}" aria-label="Διαγραφή">${icons.trash}</button>
+          </div>`;
+        }).join("")
       : `<p class="hint">Καμία ακόμα.</p>`;
 
     view.querySelector("#goalList").innerHTML = (p.goals || []).length
@@ -434,16 +464,27 @@ export async function render(view) {
       : `<p class="hint">Κανένας ακόμα.</p>`;
 
     view.querySelector("#catList").innerHTML = (p.categories || []).length
-      ? p.categories.map(c => `<div class="mini-row">
-          <span><i class="cat-dot" style="background:${c.color}"></i><b>${escapeHtml(c.label)}</b> · ${
-            c.scope === "subscription" ? "συνδρομές" : c.scope === "income" ? "έσοδα" : "έξοδα"}</span>
-          <button class="icon-btn" data-delcat="${c.id}" aria-label="Διαγραφή">${icons.trash}</button>
-        </div>`).join("")
+      ? p.categories.map(c => {
+          const scopeLabel = c.scope === "subscription" ? "συνδρομές" : c.scope === "income" ? "έσοδα" : "έξοδα";
+          const parentLabel = c.parent
+            ? mergedCategories(c.scope, c.scope === "income" ? INCOME_CATEGORIES
+                : c.scope === "subscription" ? CATEGORIES : EXPENSE_CATEGORIES)[c.parent]
+            : null;
+          return `<div class="mini-row">
+            <span><i class="cat-dot" style="background:${c.color}"></i><b>${escapeHtml(c.label)}</b> · ${scopeLabel}${
+              parentLabel ? ` · κάτω από ${escapeHtml(parentLabel)}` : ""}</span>
+            <button class="icon-btn" data-delcat="${c.id}" aria-label="Διαγραφή">${icons.trash}</button>
+          </div>`;
+        }).join("")
       : `<p class="hint">Καμία ακόμα.</p>`;
   };
   drawMini();
 
   const refresh = async () => { await loadPrefs(); drawMini(); };
+
+  // Οι κατηγορίες της γρήγορης ενέργειας αλλάζουν μαζί με τον τύπο της
+  const quickCatOptions = kind => categoryOptionsHtml(
+    kind, mergedCategories(kind, kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES));
 
   view.querySelector("#btnAddQuick").addEventListener("click", () => {
     openModal({
@@ -456,17 +497,68 @@ export async function render(view) {
             <input type="text" id="qAmount" inputmode="decimal" placeholder="3,00"></div>
           <div class="field"><label for="qKind">Τύπος</label>
             <select id="qKind"><option value="expense">Έξοδο</option><option value="income">Έσοδο</option></select></div>
-        </div>`,
+        </div>
+        <div class="field"><label for="qCat">Κατηγορία</label>
+          <select id="qCat">${quickCatOptions("expense")}</select></div>`,
+      onOpen: ov => {
+        ov.querySelector("#qKind").addEventListener("change", e => {
+          ov.querySelector("#qCat").innerHTML = quickCatOptions(e.target.value);
+        });
+      },
       onSave: async ov => {
         const label = ov.querySelector("#qLabel").value.trim();
         const amount = parseFloat(ov.querySelector("#qAmount").value.replace(",", "."));
         if (!label || isNaN(amount)) { toast("Συμπλήρωσε ετικέτα και ποσό.", "error"); return false; }
-        await quickActions.insert({ label, amount, kind: ov.querySelector("#qKind").value, sort: (prefs().quick || []).length });
+        await quickActions.insert({
+          label, amount,
+          kind: ov.querySelector("#qKind").value,
+          category: ov.querySelector("#qCat").value,
+          sort: (prefs().quick || []).length
+        });
         await refresh();
         toast("Προστέθηκε");
       }
     });
   });
+
+  // ---- Λογαριασμοί ----
+  const acctFormHtml = a => `
+    <div class="field"><label for="aName">Όνομα</label>
+      <input type="text" id="aName" placeholder="π.χ. Μετρητά" value="${a ? escapeHtml(a.name) : ""}"></div>
+    <div class="row2">
+      <div class="field"><label for="aKind">Είδος</label>
+        <select id="aKind">${Object.entries(ACCOUNT_KINDS).map(([v, l]) =>
+          `<option value="${v}" ${a?.kind === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div class="field"><label for="aColor">Χρώμα</label>
+        <input type="color" id="aColor" value="${a?.color || "#4c8dff"}"></div>
+    </div>
+    <div class="field"><label for="aStart">Αρχικό υπόλοιπο (€)</label>
+      <input type="text" id="aStart" inputmode="decimal" placeholder="0,00" value="${
+        a ? String(a.start_balance).replace(".", ",") : ""}"></div>
+    <p class="hint">Πόσα έχεις εκεί αυτή τη στιγμή. Οι κινήσεις που θα καταχωρείς προσθαφαιρούνται από αυτό.</p>`;
+
+  const openAcctForm = a => openModal({
+    title: a ? "Επεξεργασία λογαριασμού" : "Νέος λογαριασμός",
+    body: acctFormHtml(a),
+    onSave: async ov => {
+      const name = ov.querySelector("#aName").value.trim();
+      if (!name) { toast("Συμπλήρωσε όνομα.", "error"); return false; }
+      const raw = ov.querySelector("#aStart").value.replace(",", ".").trim();
+      const start_balance = raw === "" ? 0 : parseFloat(raw);
+      if (isNaN(start_balance)) { toast("Το αρχικό υπόλοιπο δεν είναι αριθμός.", "error"); return false; }
+      const row = {
+        name, start_balance,
+        kind: ov.querySelector("#aKind").value,
+        color: ov.querySelector("#aColor").value
+      };
+      if (a) await accounts.update(a.id, row);
+      else await accounts.insert({ ...row, sort: (prefs().accounts || []).length });
+      await refresh();
+      toast(a ? "Ενημερώθηκε" : "Ο λογαριασμός προστέθηκε");
+    }
+  });
+
+  view.querySelector("#btnAddAcct").addEventListener("click", () => openAcctForm(null));
 
   view.querySelector("#btnAddGoal").addEventListener("click", () => {
     openModal({
@@ -491,6 +583,14 @@ export async function render(view) {
     });
   });
 
+  // Γονείς: μόνο κατηγορίες που δεν είναι ήδη υποκατηγορίες — ένα επίπεδο βάθος αρκεί
+  const baseFor = scope =>
+    scope === "income" ? INCOME_CATEGORIES : scope === "subscription" ? CATEGORIES : EXPENSE_CATEGORIES;
+  const parentOptions = scope => `<option value="">— καμία, δική της κατηγορία —</option>` +
+    Object.entries(mergedCategories(scope, baseFor(scope)))
+      .filter(([key]) => rootCategory(scope, key) === key)
+      .map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join("");
+
   view.querySelector("#btnAddCat").addEventListener("click", () => {
     openModal({
       title: "Νέα κατηγορία",
@@ -506,14 +606,22 @@ export async function render(view) {
             </select></div>
           <div class="field"><label for="cColor">Χρώμα</label>
             <input type="color" id="cColor" value="#7b8fd6"></div>
-        </div>`,
+        </div>
+        <div class="field"><label for="cParent">Υποκατηγορία του</label>
+          <select id="cParent">${parentOptions("expense")}</select></div>`,
+      onOpen: ov => {
+        ov.querySelector("#cScope").addEventListener("change", e => {
+          ov.querySelector("#cParent").innerHTML = parentOptions(e.target.value);
+        });
+      },
       onSave: async ov => {
         const label = ov.querySelector("#cLabel").value.trim();
         if (!label) { toast("Συμπλήρωσε όνομα.", "error"); return false; }
         const key = "u_" + label.toLowerCase().replace(/\s+/g, "_").slice(0, 20) + "_" + Math.random().toString(36).slice(2, 5);
         await customCategories.insert({
           scope: ov.querySelector("#cScope").value, key, label,
-          color: ov.querySelector("#cColor").value
+          color: ov.querySelector("#cColor").value,
+          parent: ov.querySelector("#cParent").value || null
         });
         await refresh();
         toast("Η κατηγορία προστέθηκε");
@@ -525,9 +633,18 @@ export async function render(view) {
     const q = e.target.closest("[data-delquick]");
     const g = e.target.closest("[data-delgoal]");
     const c = e.target.closest("[data-delcat]");
+    const ae = e.target.closest("[data-editacct]");
+    const ad = e.target.closest("[data-delacct]");
     if (q) { await quickActions.remove(q.dataset.delquick); await refresh(); }
     if (g) { await goals.remove(g.dataset.delgoal); await refresh(); }
     if (c) { await customCategories.remove(c.dataset.delcat); await refresh(); }
+    if (ae) openAcctForm((prefs().accounts || []).find(a => a.id === ae.dataset.editacct));
+    if (ad) {
+      const a = (prefs().accounts || []).find(x => x.id === ad.dataset.delacct);
+      // Οι κινήσεις μένουν· απλώς χάνουν τον λογαριασμό τους (on delete set null)
+      confirmModal(`Διαγραφή του λογαριασμού «${a?.name || ""}»; Οι κινήσεις του μένουν, χωρίς λογαριασμό.`,
+        async () => { await accounts.remove(ad.dataset.delacct); await refresh(); toast("Διαγράφηκε"); });
+    }
   });
 
   view.querySelectorAll("[data-copy]").forEach(btn =>

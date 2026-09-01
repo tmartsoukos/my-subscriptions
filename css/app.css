@@ -1169,7 +1169,63 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 /* ============ Οικονομικά ============ */
 .amount-in { color: var(--ok); }
 .amount-out { color: var(--danger); }
+/* Η μεταφορά δεν κερδίζει ούτε χάνει τίποτα — ουδέτερο χρώμα, χωρίς πρόσημο */
+.amount-move { color: var(--muted); }
 .stat .value.amount-in, .stat .value.amount-out { letter-spacing: -0.01em; }
+.stat-sub { color: var(--muted); font-size: var(--fs-xs); margin-top: 4px; }
+
+/* ---- Λογαριασμοί: πού βρίσκονται τα λεφτά ---- */
+.accounts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3); margin-bottom: var(--space-3);
+}
+.acct-tile {
+  text-align: left; display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--c, var(--accent));
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  color: var(--text); font: inherit; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.acct-tile:hover { border-color: var(--c, var(--accent)); }
+.acct-tile:active { transform: scale(.985); }
+.acct-tile .acct-name { color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.acct-tile .acct-kind { color: var(--muted); font-size: var(--fs-xs); }
+.acct-tile strong { font-size: var(--fs-md); letter-spacing: -0.01em; }
+/* Σε στενή οθόνη τρία κουμπιά δεν χωράνε σε μία σειρά — η μεταφορά μένει εικονίδιο */
+@media (max-width: 520px) {
+  #btnTransfer .btn-label { display: none; }
+}
+.orphan-hint { margin: -4px 0 var(--space-4); cursor: pointer; }
+
+/* ---- Ημερολόγιο χρημάτων ---- */
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.cal-head strong { font-size: var(--fs-base); }
+.cal-head .icon-btn { font-size: 20px; line-height: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-wd { text-align: center; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; padding-bottom: 2px; }
+.cal-cell {
+  min-height: 52px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px 5px; display: flex; flex-direction: column; gap: 1px;
+  background: var(--bg-raised); font-size: 11px; overflow: hidden;
+}
+.cal-cell.empty { border-color: transparent; background: none; }
+.cal-cell.has { background: var(--surface); }
+.cal-cell.today { border-color: var(--accent); }
+.cal-day { color: var(--muted); font-weight: 600; }
+.cal-cell.today .cal-day { color: var(--accent); }
+.cal-out { color: var(--danger); font-weight: 700; }
+.cal-in { color: var(--ok); font-weight: 600; }
+.cal-dots { display: flex; gap: 3px; margin-top: auto; }
+.cal-dots i { width: 5px; height: 5px; border-radius: 50%; display: block; }
+.cal-cell.drillable { cursor: pointer; }
+.cal-cell.drillable:hover { border-color: var(--border-strong); }
+.cal-cell.drillable:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.orphan-hint.drillable { text-decoration: underline dotted; text-underline-offset: 3px; }
+.cal-legend { margin-top: 10px; }
+@media (max-width: 520px) {
+  .cal-cell { min-height: 44px; padding: 3px 4px; font-size: 10px; }
+}
 .day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .day-sum { font-size: var(--fs-sm); text-transform: none; letter-spacing: 0; font-weight: 600; }
 .day-sum .amount-in { margin-right: 8px; }

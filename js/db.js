@@ -40,6 +40,13 @@ function isNetworkError(e) {
   return e instanceof TypeError || /fetch|network|Failed to/i.test(e.message || "");
 }
 
+// Ο πίνακας δεν υπάρχει στη βάση — λείπει το αντίστοιχο migration.
+// Δεν είναι σφάλμα δικτύου: η εφαρμογή απλώς προχωράει χωρίς τη λειτουργία.
+export function isMissingTable(e) {
+  return e?.code === "PGRST205" || e?.code === "42P01" ||
+    /Could not find the table|does not exist/i.test(e?.message || "");
+}
+
 // ---- Ουρά αλλαγών εκτός σύνδεσης ----
 // Ό,τι γράφεται χωρίς δίκτυο μπαίνει σε ουρά, εφαρμόζεται τοπικά στο cache,
 // και στέλνεται με τη σειρά μόλις επιστρέψει η σύνδεση.
@@ -193,6 +200,7 @@ export const watchlist = store("watchlist", "created_at", false);
 export const courses = store("courses", "semester");
 export const health = store("health_items", "item_date");
 export const finance = store("finance_entries", "entry_date", false);
+export const accounts = store("accounts", "sort");
 
 // ---- Εικόνες σημειώσεων (ιδιωτικός κάδος, πρόσβαση με signed URL) ----
 const BUCKET = "note-images";

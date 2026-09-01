@@ -451,6 +451,7 @@ export async function render(view) {
           return `<div class="mini-row">
             <span><b>${escapeHtml(q.label)}</b>${q.amount != null ? ` · ${q.kind === "income" ? "+" : "−"}${fmt(q.amount)}` : ""}${
               catLabel ? ` · ${escapeHtml(catLabel)}` : ""}</span>
+            <button class="icon-btn" data-editquick="${q.id}" aria-label="Επεξεργασία">${icons.edit}</button>
             <button class="icon-btn" data-delquick="${q.id}" aria-label="Διαγραφή">${icons.trash}</button>
           </div>`;
         }).join("")
@@ -483,43 +484,50 @@ export async function render(view) {
   const refresh = async () => { await loadPrefs(); drawMini(); };
 
   // Οι κατηγορίες της γρήγορης ενέργειας αλλάζουν μαζί με τον τύπο της
-  const quickCatOptions = kind => categoryOptionsHtml(
-    kind, mergedCategories(kind, kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES));
+  const quickCatOptions = (kind, selected) => categoryOptionsHtml(
+    kind, mergedCategories(kind, kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES), selected);
 
-  view.querySelector("#btnAddQuick").addEventListener("click", () => {
-    openModal({
-      title: "Νέα γρήγορη ενέργεια",
-      body: `
-        <div class="field"><label for="qLabel">Ετικέτα</label>
-          <input type="text" id="qLabel" placeholder="π.χ. Καφές"></div>
-        <div class="row2">
-          <div class="field"><label for="qAmount">Ποσό (€)</label>
-            <input type="text" id="qAmount" inputmode="decimal" placeholder="3,00"></div>
-          <div class="field"><label for="qKind">Τύπος</label>
-            <select id="qKind"><option value="expense">Έξοδο</option><option value="income">Έσοδο</option></select></div>
-        </div>
-        <div class="field"><label for="qCat">Κατηγορία</label>
-          <select id="qCat">${quickCatOptions("expense")}</select></div>`,
-      onOpen: ov => {
-        ov.querySelector("#qKind").addEventListener("change", e => {
-          ov.querySelector("#qCat").innerHTML = quickCatOptions(e.target.value);
-        });
-      },
-      onSave: async ov => {
-        const label = ov.querySelector("#qLabel").value.trim();
-        const amount = parseFloat(ov.querySelector("#qAmount").value.replace(",", "."));
-        if (!label || isNaN(amount)) { toast("Συμπλήρωσε ετικέτα και ποσό.", "error"); return false; }
-        await quickActions.insert({
-          label, amount,
-          kind: ov.querySelector("#qKind").value,
-          category: ov.querySelector("#qCat").value,
-          sort: (prefs().quick || []).length
-        });
-        await refresh();
-        toast("Προστέθηκε");
-      }
-    });
+  // Ίδια φόρμα για νέα και για επεξεργασία: οι παλιές ενέργειες δεν έχουν
+  // κατηγορία αποθηκευμένη και αλλιώς θα έμεναν για πάντα στο «Άλλο».
+  const openQuickForm = q => openModal({
+    title: q ? "Επεξεργασία ενέργειας" : "Νέα γρήγορη ενέργεια",
+    body: `
+      <div class="field"><label for="qLabel">Ετικέτα</label>
+        <input type="text" id="qLabel" placeholder="π.χ. Καφές" value="${q ? escapeHtml(q.label) : ""}"></div>
+      <div class="row2">
+        <div class="field"><label for="qAmount">Ποσό (€)</label>
+          <input type="text" id="qAmount" inputmode="decimal" placeholder="3,00" value="${
+            q?.amount != null ? String(q.amount).replace(".", ",") : ""}"></div>
+        <div class="field"><label for="qKind">Τύπος</label>
+          <select id="qKind">
+            <option value="expense" ${q?.kind === "expense" ? "selected" : ""}>Έξοδο</option>
+            <option value="income" ${q?.kind === "income" ? "selected" : ""}>Έσοδο</option>
+          </select></div>
+      </div>
+      <div class="field"><label for="qCat">Κατηγορία</label>
+        <select id="qCat">${quickCatOptions(q?.kind || "expense", q?.category)}</select></div>`,
+    onOpen: ov => {
+      ov.querySelector("#qKind").addEventListener("change", e => {
+        ov.querySelector("#qCat").innerHTML = quickCatOptions(e.target.value);
+      });
+    },
+    onSave: async ov => {
+      const label = ov.querySelector("#qLabel").value.trim();
+      const amount = parseFloat(ov.querySelector("#qAmount").value.replace(",", "."));
+      if (!label || isNaN(amount)) { toast("Συμπλήρωσε ετικέτα και ποσό.", "error"); return false; }
+      const row = {
+        label, amount,
+        kind: ov.querySelector("#qKind").value,
+        category: ov.querySelector("#qCat").value
+      };
+      if (q) await quickActions.update(q.id, row);
+      else await quickActions.insert({ ...row, sort: (prefs().quick || []).length });
+      await refresh();
+      toast(q ? "Ενημερώθηκε" : "Προστέθηκε");
+    }
   });
+
+  view.querySelector("#btnAddQuick").addEventListener("click", () => openQuickForm(null));
 
   // ---- Λογαριασμοί ----
   const acctFormHtml = a => `
@@ -635,6 +643,8 @@ export async function render(view) {
     const c = e.target.closest("[data-delcat]");
     const ae = e.target.closest("[data-editacct]");
     const ad = e.target.closest("[data-delacct]");
+    const qe = e.target.closest("[data-editquick]");
+    if (qe) openQuickForm((prefs().quick || []).find(x => x.id === qe.dataset.editquick));
     if (q) { await quickActions.remove(q.dataset.delquick); await refresh(); }
     if (g) { await goals.remove(g.dataset.delgoal); await refresh(); }
     if (c) { await customCategories.remove(c.dataset.delcat); await refresh(); }

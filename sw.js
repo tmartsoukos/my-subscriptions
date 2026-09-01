@@ -1,4 +1,4 @@
-const CACHE = "dash-v24";
+const CACHE = "dash-v25";
 const ASSETS = [
   "./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-income.png", "icon-expense.png",
   "css/app.css",

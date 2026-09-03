@@ -1198,6 +1198,48 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 }
 .orphan-hint { margin: -4px 0 var(--space-4); cursor: pointer; }
 
+/* ---- Ψηφία σταθερού πλάτους σε ό,τι είναι ποσό ----
+   Χωρίς αυτό οι στήλες τρεμοπαίζουν καθώς αλλάζουν οι αριθμοί και δεν
+   στοιχίζονται ποτέ κάθετα. */
+.price, .stat .value, .stat-sub, .acct-tile strong, .day-sum, .quick-chip strong,
+.drill-value, .drill-total strong, .fixed-row strong, .cal-out, .cal-in,
+.amount-in, .amount-out, .amount-move, .filter-count {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.today-value { font-size: var(--fs-md); display: flex; flex-direction: column; gap: 2px; }
+
+/* ---- Καρτέλες των Οικονομικών ---- */
+.fin-tabs {
+  display: flex; width: 100%; margin-bottom: var(--space-3);
+  overflow-x: auto; scrollbar-width: none;
+}
+.fin-tabs::-webkit-scrollbar { display: none; }
+.fin-tabs .seg-btn { flex: 1 1 0; padding: 8px 10px; white-space: nowrap; }
+.seg-sm .seg-btn { padding: 5px 11px; min-height: 30px; font-size: 12.5px; }
+.card-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.card-head-row h3 { margin: 0; }
+
+/* ---- Φίλτρα λίστας κινήσεων ---- */
+.filter-bar { margin-bottom: var(--space-4); display: flex; flex-direction: column; gap: 8px; }
+.filter-search, .filter-bar-row select, .filter-num {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font: inherit; font-size: var(--fs-sm); padding: 10px 12px; min-height: 42px;
+}
+.filter-search { width: 100%; }
+.filter-search:focus, .filter-bar-row select:focus, .filter-num:focus {
+  outline: none; border-color: var(--accent);
+}
+.filter-bar-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filter-bar-row select { flex: 1 1 150px; min-width: 0; }
+/* Μόνο του στη σειρά, το πεδίο ταξινόμησης θα τεντωνόταν σε όλο το πλάτος */
+.filter-bar-row #fSort { max-width: 240px; }
+/* Τα δύο άκρα του ποσού μένουν πάντα μαζί — χωρισμένα σε δύο γραμμές δεν διαβάζονται */
+.filter-amounts { display: flex; gap: 8px; flex: 1 1 190px; min-width: 0; }
+.filter-num { flex: 1 1 0; min-width: 0; }
+.filter-count { margin: 0; }
+#btnToggleFilters[aria-expanded="true"] { border-color: var(--border-strong); color: var(--text); }
+
 /* ---- Ημερολόγιο χρημάτων ---- */
 .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .cal-head strong { font-size: var(--fs-base); }

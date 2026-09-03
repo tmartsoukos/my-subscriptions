@@ -30,11 +30,31 @@ const CAT_COLOR = {
 };
 const TRANSFER_COLOR = "#8592ad";
 
+// Η σελίδα είχε γίνει έντεκα κάρτες στη σειρά. Τέσσερις καρτέλες με σκοπό
+// η καθεμιά· η ενεργή γράφεται στη διαδρομή (#/finance/list) ώστε να επιβιώνει
+// σε ανανέωση και να μοιράζεται ως σύνδεσμος.
+const TABS = {
+  overview: "Επισκόπηση",
+  list: "Κινήσεις",
+  analysis: "Ανάλυση",
+  calendar: "Ημερολόγιο"
+};
+
 let items = [];
 let subs = [];
 let range = "month";       // today | week | month
 let tableMissing = false;
 let calMonth = null;       // ποιον μήνα δείχνει το ημερολόγιο χρημάτων
+let tab = "overview";
+let calView = "month";     // month = ο μήνας αναλυτικά, year = οι τελευταίοι 6 μήνες
+let sort = "date";         // date | amount
+let filters = { text: "", cat: "", account: "", min: "", max: "" };
+let filtersOpen = false;
+
+// Αναζήτηση χωρίς τόνους: «καφες» βρίσκει «Καφές»
+const strip = s => String(s).normalize("NFD")
+  .split("").filter(c => { const n = c.charCodeAt(0); return n < 0x300 || n > 0x36f; })
+  .join("").toLowerCase();
 
 // Οι δικές μου κατηγορίες προστίθενται στις προεπιλεγμένες
 const cats = kind => mergedCategories(kind, kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES);
@@ -52,6 +72,20 @@ function transferPath(e) {
   const a = accountById(e.account_id)?.name;
   const b = accountById(e.to_account_id)?.name;
   return a || b ? `${a || "—"} → ${b || "—"}` : "";
+}
+
+// Επιλογές κατηγορίας για το φίλτρο. Ένα μόνο επίπεδο <optgroup> επιτρέπεται,
+// οπότε το κρατάμε για τον διαχωρισμό εξόδων/εσόδων και οι υποκατηγορίες
+// δηλώνονται με εσοχή.
+function filterCatOptions() {
+  const opt = (v, l) => `<option value="${escapeHtml(v)}" ${filters.cat === v ? "selected" : ""}>${escapeHtml(l)}</option>`;
+  const scopeOptions = scope => Object.entries(cats(scope))
+    .filter(([key]) => rootCategory(scope, key) === key)
+    .map(([key, l]) => opt(key, l) +
+      childrenOf(scope, key).map(c => opt(c.key, "  " + c.label)).join(""))
+    .join("");
+  return `<optgroup label="Έξοδα">${scopeOptions("expense")}</optgroup>
+    <optgroup label="Έσοδα">${scopeOptions("income")}</optgroup>`;
 }
 
 function rangeStart() {
@@ -276,6 +310,9 @@ create policy "own finance" on public.finance_entries
   const quick = (prefs().quick || []).filter(q => q.kind !== "todo");
   const accts = accountList();
   if (!calMonth) calMonth = new Date(today().getFullYear(), today().getMonth(), 1);
+  // Η διαδρομή ορίζει την καρτέλα· το «expense»/«income» το χειρίζεται η συντόμευση πιο κάτω
+  const routed = param();
+  if (TABS[routed]) tab = routed;
 
   const shown = items.filter(inRange).sort((a, b) =>
     b.entry_date.localeCompare(a.entry_date) || b.created_at.localeCompare(a.created_at));
@@ -323,9 +360,31 @@ create policy "own finance" on public.finance_entries
     .concat(fixed > 0 ? [{ label: "Συνδρομές", value: fixed, color: CAT_COLOR.subs }] : [])
     .sort((a, b) => b.value - a.value);
 
+  // ---- Κινήσεις: φιλτράρισμα και ταξινόμηση ----
+  // Τα φίλτρα αγγίζουν μόνο τη λίστα. Τα σύνολα, τα γραφήματα και το ημερολόγιο
+  // δείχνουν πάντα ολόκληρη την περίοδο — αλλιώς οι αριθμοί θα έλεγαν ψέματα.
+  const q = strip(filters.text.trim());
+  const min = parseFloat(String(filters.min).replace(",", "."));
+  const max = parseFloat(String(filters.max).replace(",", "."));
+  const rootOf = e => rootCategory(e.kind === "income" ? "income" : "expense", e.category);
+  const filtered = shown.filter(e => {
+    // Η επιλογή γονικής κατηγορίας πιάνει και τις υποκατηγορίες της
+    if (filters.cat && filters.cat !== e.category && filters.cat !== rootOf(e)) return false;
+    if (filters.account && filters.account !== e.account_id && filters.account !== e.to_account_id) return false;
+    if (!isNaN(min) && Number(e.amount) < min) return false;
+    if (!isNaN(max) && Number(e.amount) > max) return false;
+    if (q && !strip(`${e.note || ""} ${label(e)}`).includes(q)) return false;
+    return true;
+  });
+  const byAmount = sort === "amount";
+  const listRows = byAmount ? [...filtered].sort((a, b) => Number(b.amount) - Number(a.amount)) : filtered;
+  const filterOn = !!(filters.cat || filters.account || filters.text.trim() || filters.min || filters.max);
+  const listNet = listRows.filter(isFlow)
+    .reduce((s, e) => s + (e.kind === "income" ? 1 : -1) * Number(e.amount), 0);
+
   // Ομαδοποίηση ανά ημέρα
   const groups = {};
-  for (const e of shown) (groups[e.entry_date] = groups[e.entry_date] || []).push(e);
+  for (const e of filtered) (groups[e.entry_date] = groups[e.entry_date] || []).push(e);
 
   const accountsBlock = accts.length ? `
     <div class="accounts">
@@ -345,6 +404,135 @@ create policy "own finance" on public.finance_entries
       ${orphans.length === 1 ? "Μία κίνηση δεν έχει" : `${orphans.length} κινήσεις δεν έχουν`} λογαριασμό —
       τα υπόλοιπα δεν τις μετράνε.</p>` : ""}` : "";
 
+  // ---- Τα περιεχόμενα κάθε καρτέλας ----
+
+  const statsBlock = `<div class="stats">
+    ${accts.length ? `<div class="stat" data-drill="available"><div class="label">Διαθέσιμα</div>
+      <div class="value ${available < 0 ? "amount-out" : ""}">${fmt(available)}</div></div>` : ""}
+    <div class="stat" data-drill="today"><div class="label">Σήμερα</div>
+      <div class="value today-value">
+        <span class="${todayIn ? "amount-in" : ""}">+${fmt(todayIn)}</span>
+        <span class="${todayOut ? "amount-out" : ""}">−${fmt(todayOut)}</span>
+      </div>
+    </div>
+    <div class="stat" data-drill="income"><div class="label">Έσοδα περιόδου</div><div class="value amount-in">${fmt(income)}</div></div>
+    <div class="stat" data-drill="expense"><div class="label">Έξοδα περιόδου</div><div class="value amount-out">${fmt(expense + fixed)}</div></div>
+    <div class="stat" data-drill="balance"><div class="label">Ροή περιόδου</div>
+      <div class="value ${periodFlow >= 0 ? "amount-in" : "amount-out"}">${periodFlow >= 0 ? "+" : "−"}${fmt(Math.abs(periodFlow))}</div>
+    </div>
+    <div class="stat" data-drill="perday"><div class="label">Μέσο ημερήσιο έξοδο</div>
+      <div class="value">${fmt(perDay)}</div>
+      <div class="stat-sub">διάμεσος ${fmt(medianDay)}</div>
+    </div>
+  </div>`;
+
+  // Η ανάλυση χρησιμοποιείται και ως καρτέλα και ως φύλλο που ανοίγει από την
+  // επισκόπηση — μέσα στο φύλλο ο σύνδεσμος προς τις συνδρομές θα άφηνε
+  // ορφανό ανοιχτό modal, οπότε λείπει.
+  const analysisBlock = ({ withLink = true } = {}) => `
+    ${shown.length || fixed > 0 ? `<div class="charts">
+      <div class="chart-card">
+        <h3>Έξοδα ανά ημέρα (14 ημέρες)</h3>
+        ${barChart(dailySeries())}
+      </div>
+      <div class="chart-card">
+        <h3>Πού πάνε τα λεφτά</h3>
+        ${donutItems.length ? donutChart(donutItems, Math.round(expense + fixed) + "€")
+          : `<p class="hint">Καμία δαπάνη στην περίοδο.</p>`}
+      </div>
+    </div>` : `<p class="hint">Καμία δαπάνη στην περίοδο.</p>`}
+
+    <div class="chart-card fixed-card">
+      <h3>Σταθερά έξοδα</h3>
+      <div class="fixed-row">
+        <span>${subs.filter(s => !isInTrial(s)).length} συνδρομές</span>
+        <strong class="amount-out">${fmt(fixed)}</strong>
+      </div>
+      ${withLink ? `<a href="#/subs" class="btn btn-ghost" style="margin-top:10px">${icons.card} Διαχείριση συνδρομών</a>` : ""}
+    </div>`;
+
+  // Ημερολόγιο και χάρτης θερμότητας απαντούσαν στην ίδια ερώτηση σε δύο
+  // κάρτες. Ίδια θέση, διακόπτης: ο μήνας αναλυτικά ή το εξάμηνο συνολικά.
+  const calendarBlock = `<div class="chart-card">
+    <div class="card-head-row">
+      <h3>${calView === "month" ? "Ημερολόγιο χρημάτων" : "Ημέρες με έξοδα"}</h3>
+      <div class="seg seg-sm" role="group" aria-label="Προβολή ημερολογίου">
+        <button class="seg-btn ${calView === "month" ? "active" : ""}" data-calview="month">Μήνας</button>
+        <button class="seg-btn ${calView === "year" ? "active" : ""}" data-calview="year">6 μήνες</button>
+      </div>
+    </div>
+    ${calView === "month"
+      ? monthCalendar({ month: calMonth, entries: items, subs })
+      : items.some(e => e.kind === "expense")
+        ? heatmap(expenseByDay(), { format: fmt, empty: "χωρίς έξοδα" })
+        : `<p class="hint">Καμία δαπάνη ακόμα.</p>`}
+  </div>`;
+
+  // Η αναζήτηση και η ταξινόμηση είναι πάντα εδώ· τα υπόλοιπα φίλτρα ανοίγουν
+  // όταν τα ζητήσεις, ώστε η λίστα να μη σπρώχνεται εκτός οθόνης.
+  const activeFilters = [filters.cat, filters.account, filters.min, filters.max].filter(Boolean).length;
+  const filterBar = `<div class="filter-bar">
+    <input type="search" id="fq" class="filter-search" placeholder="Αναζήτηση σε σημειώσεις και κατηγορίες"
+      value="${escapeHtml(filters.text)}" aria-label="Αναζήτηση κινήσεων">
+    <div class="filter-bar-row">
+      <button class="btn btn-ghost btn-sm" id="btnToggleFilters" aria-expanded="${filtersOpen}">
+        ${icons.dots} Φίλτρα${activeFilters ? ` · ${activeFilters}` : ""}
+      </button>
+      <select id="fSort" aria-label="Ταξινόμηση">
+        <option value="date" ${sort === "date" ? "selected" : ""}>Νεότερα πρώτα</option>
+        <option value="amount" ${sort === "amount" ? "selected" : ""}>Μεγαλύτερο ποσό</option>
+      </select>
+    </div>
+    ${filtersOpen ? `<div class="filter-bar-row">
+      <select id="fCatFilter" aria-label="Κατηγορία">
+        <option value="">Όλες οι κατηγορίες</option>
+        ${filterCatOptions()}
+      </select>
+      ${accts.length ? `<select id="fAcctFilter" aria-label="Λογαριασμός">
+        <option value="">Όλοι οι λογαριασμοί</option>
+        ${accts.map(a => `<option value="${a.id}" ${filters.account === a.id ? "selected" : ""}>${escapeHtml(a.name)}</option>`).join("")}
+      </select>` : ""}
+      <div class="filter-amounts">
+        <input type="text" id="fMin" class="filter-num" inputmode="decimal" placeholder="από €"
+          value="${escapeHtml(filters.min)}" aria-label="Ελάχιστο ποσό">
+        <input type="text" id="fMax" class="filter-num" inputmode="decimal" placeholder="έως €"
+          value="${escapeHtml(filters.max)}" aria-label="Μέγιστο ποσό">
+      </div>
+      ${filterOn ? `<button class="btn btn-ghost btn-sm" id="btnClearFilters">${icons.x} Καθαρισμός</button>` : ""}
+    </div>` : ""}
+    ${listRows.length ? `<p class="hint filter-count">${listRows.length} ${listRows.length === 1 ? "κίνηση" : "κινήσεις"} ·
+      καθαρό <span class="${listNet >= 0 ? "amount-in" : "amount-out"}">${listNet >= 0 ? "+" : "−"}${fmt(Math.abs(listNet))}</span></p>` : ""}
+  </div>`;
+
+  const listBody = listRows.length
+    ? (byAmount
+      ? `<div class="section-title day-head"><span>Κατά ποσό</span></div>
+         <div class="list">${listRows.map(entryHtml).join("")}</div>`
+      : Object.entries(groups).map(([date, list]) => {
+          const dayIn = list.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
+          const dayOut = list.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
+          return `<div class="section-title day-head">
+              <span>${date === todayIso ? "Σήμερα" : fmtDate(new Date(date + "T00:00:00"))}</span>
+              <span class="day-sum">${dayIn ? `<span class="amount-in">+${fmt(dayIn)}</span>` : ""} ${dayOut ? `<span class="amount-out">−${fmt(dayOut)}</span>` : ""}</span>
+            </div>
+            <div class="list">${list.map(entryHtml).join("")}</div>`;
+        }).join(""))
+    : filterOn
+      ? `<div class="empty">${icons.wallet}<p>Καμία κίνηση με αυτά τα φίλτρα.</p>
+         <button class="btn btn-ghost" id="btnClearFiltersEmpty">${icons.x} Καθαρισμός φίλτρων</button></div>`
+      : `<div class="empty">${icons.wallet}<p>Καμία εγγραφή σε αυτή την περίοδο.</p>
+         <button class="btn btn-primary" id="btnExpenseEmpty">${icons.plus} Πρώτο έξοδο</button></div>`;
+
+  const overviewBlock = `
+    ${accountsBlock}
+    ${statsBlock}
+    ${quick.length ? `<div class="quick-row">
+      ${quick.map(q => `<button class="quick-chip ${q.kind === "income" ? "in" : "out"}" data-quick="${q.id}">
+        <span>${escapeHtml(q.label)}</span>${q.amount != null ? `<strong>${q.kind === "income" ? "+" : "−"}${fmt(q.amount)}</strong>` : ""}
+      </button>`).join("")}
+    </div>` : ""}
+    <button class="btn btn-ghost" id="btnAnalysis">${icons.chart} Πού πάνε τα λεφτά</button>`;
+
   view.innerHTML = `
     <div class="page-head">
       <h1>Οικονομικά</h1>
@@ -356,80 +544,21 @@ create policy "own finance" on public.finance_entries
       </div>
     </div>
 
-    ${accountsBlock}
-
-    <div class="stats">
-      ${accts.length ? `<div class="stat" data-drill="available"><div class="label">Διαθέσιμα</div>
-        <div class="value ${available < 0 ? "amount-out" : ""}">${fmt(available)}</div></div>` : ""}
-      <div class="stat" data-drill="today"><div class="label">Σήμερα</div>
-        <div class="value" style="font-size:var(--fs-md)">
-          <span class="amount-in">+${fmt(todayIn)}</span> <span class="amount-out">−${fmt(todayOut)}</span>
-        </div>
-      </div>
-      <div class="stat" data-drill="income"><div class="label">Έσοδα περιόδου</div><div class="value amount-in">${fmt(income)}</div></div>
-      <div class="stat" data-drill="expense"><div class="label">Έξοδα περιόδου</div><div class="value amount-out">${fmt(expense + fixed)}</div></div>
-      <div class="stat" data-drill="balance"><div class="label">Ροή περιόδου</div>
-        <div class="value ${periodFlow >= 0 ? "amount-in" : "amount-out"}">${periodFlow >= 0 ? "+" : "−"}${fmt(Math.abs(periodFlow))}</div>
-      </div>
-      <div class="stat" data-drill="perday"><div class="label">Μέσο ημερήσιο έξοδο</div>
-        <div class="value">${fmt(perDay)}</div>
-        <div class="stat-sub">διάμεσος ${fmt(medianDay)}</div>
-      </div>
+    <div class="seg fin-tabs" role="tablist" aria-label="Ενότητες οικονομικών">
+      ${Object.entries(TABS).map(([id, l]) =>
+        `<button class="seg-btn ${tab === id ? "active" : ""}" data-tab="${id}"
+          role="tab" aria-selected="${tab === id}">${l}</button>`).join("")}
     </div>
 
-    ${quick.length ? `<div class="quick-row">
-      ${quick.map(q => `<button class="quick-chip ${q.kind === "income" ? "in" : "out"}" data-quick="${q.id}">
-        <span>${escapeHtml(q.label)}</span>${q.amount != null ? `<strong>${q.kind === "income" ? "+" : "−"}${fmt(q.amount)}</strong>` : ""}
-      </button>`).join("")}
-    </div>` : ""}
-
-    <div class="filters">
+    ${tab === "calendar" ? "" : `<div class="filters">
       ${[["today", "Σήμερα"], ["week", "7 ημέρες"], ["month", "Αυτόν τον μήνα"]].map(([v, l]) =>
         `<button class="filter-chip ${range === v ? "active" : ""}" data-range="${v}">${l}</button>`).join("")}
-    </div>
+    </div>`}
 
-    ${shown.length || fixed > 0 ? `<div class="charts">
-      <div class="chart-card">
-        <h3>Έξοδα ανά ημέρα (14 ημέρες)</h3>
-        ${barChart(dailySeries())}
-      </div>
-      <div class="chart-card">
-        <h3>Πού πάνε τα λεφτά</h3>
-        ${donutItems.length ? donutChart(donutItems, Math.round(expense + fixed) + "€")
-          : `<p class="hint">Καμία δαπάνη στην περίοδο.</p>`}
-      </div>
-    </div>` : ""}
-
-    <div class="chart-card">
-      <h3>Ημερολόγιο χρημάτων</h3>
-      ${monthCalendar({ month: calMonth, entries: items, subs })}
-    </div>
-
-    ${items.some(e => e.kind === "expense") ? `<div class="chart-card">
-      <h3>Ημέρες με έξοδα — 26 εβδομάδες</h3>
-      ${heatmap(expenseByDay(), { format: fmt, empty: "χωρίς έξοδα" })}
-    </div>` : ""}
-
-    <div class="chart-card fixed-card">
-      <h3>Σταθερά έξοδα</h3>
-      <div class="fixed-row">
-        <span>${subs.filter(s => !isInTrial(s)).length} συνδρομές</span>
-        <strong class="amount-out">${fmt(fixed)}</strong>
-      </div>
-      <a href="#/subs" class="btn btn-ghost" style="margin-top:10px">${icons.card} Διαχείριση συνδρομών</a>
-    </div>
-
-    ${shown.length ? Object.entries(groups).map(([date, list]) => {
-      const dayIn = list.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
-      const dayOut = list.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
-      return `<div class="section-title day-head">
-          <span>${date === todayIso ? "Σήμερα" : fmtDate(new Date(date + "T00:00:00"))}</span>
-          <span class="day-sum">${dayIn ? `<span class="amount-in">+${fmt(dayIn)}</span>` : ""} ${dayOut ? `<span class="amount-out">−${fmt(dayOut)}</span>` : ""}</span>
-        </div>
-        <div class="list">${list.map(entryHtml).join("")}</div>`;
-    }).join("")
-      : `<div class="empty">${icons.wallet}<p>Καμία εγγραφή σε αυτή την περίοδο.</p>
-         <button class="btn btn-primary" id="btnExpenseEmpty">${icons.plus} Πρώτο έξοδο</button></div>`}
+    ${tab === "overview" ? overviewBlock
+      : tab === "list" ? filterBar + listBody
+      : tab === "analysis" ? analysisBlock()
+      : calendarBlock}
   `;
 
   const rerender = (cached = false) => render(view, { cached });
@@ -572,7 +701,62 @@ create policy "own finance" on public.finance_entries
   view.querySelector("#btnExpenseEmpty")?.addEventListener("click", () => openForm(null, "expense", rerender));
   view.querySelector("#btnTransfer")?.addEventListener("click", () => openForm(null, "transfer", rerender));
   view.querySelectorAll("[data-range]").forEach(b =>
-    b.addEventListener("click", () => { range = b.dataset.range; rerender(); }));
+    b.addEventListener("click", () => { range = b.dataset.range; rerender(true); }));
+
+  // Αλλαγή καρτέλας: τα δεδομένα είναι ήδη εδώ, οπότε μόνο επανασχεδίαση.
+  // Το replaceState γράφει την καρτέλα στη διαδρομή χωρίς να πυροδοτήσει hashchange.
+  view.querySelectorAll("[data-tab]").forEach(b =>
+    b.addEventListener("click", () => {
+      tab = b.dataset.tab;
+      history.replaceState(null, "", "#/finance" + (tab === "overview" ? "" : "/" + tab));
+      rerender(true);
+      view.scrollIntoView?.({ block: "start" });
+    }));
+
+  view.querySelectorAll("[data-calview]").forEach(b =>
+    b.addEventListener("click", () => { calView = b.dataset.calview; rerender(true); }));
+
+  view.querySelector("#btnAnalysis")?.addEventListener("click", () => {
+    openModal({ title: "Πού πάνε τα λεφτά", closeLabel: "Κλείσιμο", body: analysisBlock({ withLink: false }) });
+  });
+
+  // ---- Φίλτρα και ταξινόμηση ----
+  // Η αναζήτηση δεν ξανασχεδιάζει σε κάθε πλήκτρο: περιμένει να σταματήσεις.
+  const searchInput = view.querySelector("#fq");
+  if (searchInput) {
+    let timer = null;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        filters.text = searchInput.value;
+        const at = searchInput.selectionStart;
+        rerender(true).then(() => {
+          // Μετά την επανασχεδίαση το πεδίο είναι καινούργιο — του δίνουμε πίσω
+          // την εστίαση και τη θέση του δρομέα, αλλιώς χάνεται η πληκτρολόγηση
+          const next = view.querySelector("#fq");
+          if (next) { next.focus(); next.setSelectionRange(at, at); }
+        });
+      }, 260);
+    });
+  }
+  const bindFilter = (sel, apply) => view.querySelector(sel)?.addEventListener("change", e => {
+    apply(e.target.value);
+    rerender(true);
+  });
+  bindFilter("#fCatFilter", v => { filters.cat = v; });
+  bindFilter("#fAcctFilter", v => { filters.account = v; });
+  bindFilter("#fSort", v => { sort = v; });
+  bindFilter("#fMin", v => { filters.min = v; });
+  bindFilter("#fMax", v => { filters.max = v; });
+
+  view.querySelector("#btnToggleFilters")?.addEventListener("click", () => {
+    filtersOpen = !filtersOpen;
+    rerender(true);
+  });
+
+  const clearFilters = () => { filters = { text: "", cat: "", account: "", min: "", max: "" }; rerender(true); };
+  view.querySelector("#btnClearFilters")?.addEventListener("click", clearFilters);
+  view.querySelector("#btnClearFiltersEmpty")?.addEventListener("click", clearFilters);
   view.querySelectorAll("[data-cal]").forEach(b =>
     b.addEventListener("click", () => {
       calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(b.dataset.cal), 1);

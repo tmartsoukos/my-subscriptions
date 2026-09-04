@@ -1174,24 +1174,73 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 .stat .value.amount-in, .stat .value.amount-out { letter-spacing: -0.01em; }
 .stat-sub { color: var(--muted); font-size: var(--fs-xs); margin-top: 4px; }
 
-/* ---- Λογαριασμοί: πού βρίσκονται τα λεφτά ---- */
+/* ---- Λογαριασμοί: κάρτες με αναλογίες πραγματικής τραπεζικής κάρτας ----
+   Το χρώμα του λογαριασμού ορίζει την ταυτότητα της κάρτας. Και οι δύο στάσεις
+   της διαβάθμισης σκουραίνουν, ώστε το λευκό κείμενο να διαβάζεται όποιο χρώμα
+   κι αν διαλέξει ο χρήστης. */
 .accounts {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--space-3); margin-bottom: var(--space-3);
 }
-.acct-tile {
-  text-align: left; display: flex; flex-direction: column; gap: 2px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-left: 3px solid var(--c, var(--accent));
-  border-radius: var(--radius-sm); padding: 12px 14px;
-  color: var(--text); font: inherit; cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+.acct-card {
+  position: relative; overflow: hidden;
+  aspect-ratio: 1.586 / 1; max-width: 320px; width: 100%;
+  border: none; border-radius: 14px; padding: 11px 13px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  text-align: left; color: #fff; font: inherit; cursor: pointer;
+  background: linear-gradient(140deg, var(--c, #4c8dff), #05080f);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 255, 255, .14);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
-.acct-tile:hover { border-color: var(--c, var(--accent)); }
-.acct-tile:active { transform: scale(.985); }
-.acct-tile .acct-name { color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
-.acct-tile .acct-kind { color: var(--muted); font-size: var(--fs-xs); }
-.acct-tile strong { font-size: var(--fs-md); letter-spacing: -0.01em; }
+@supports (background: color-mix(in oklab, red, blue)) {
+  .acct-card {
+    background:
+      radial-gradient(115% 85% at 82% 8%, rgba(255, 255, 255, .17), transparent 62%),
+      linear-gradient(140deg,
+        color-mix(in oklab, var(--c, #4c8dff) 76%, #070b16),
+        color-mix(in oklab, var(--c, #4c8dff) 30%, #04070f));
+  }
+}
+/* Διακριτική γυαλάδα, σαν φως που περνά λοξά πάνω στο πλαστικό */
+.acct-card::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(104deg, transparent 38%, rgba(255, 255, 255, .10) 50%, transparent 62%);
+}
+.acct-card:hover { box-shadow: 0 14px 30px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .18); }
+.acct-card:active { transform: scale(.985); }
+.acct-card:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.acct-card-top { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.acct-chip {
+  width: 28px; height: 21px; border-radius: 4px; flex: 0 0 auto;
+  background: linear-gradient(135deg, #f6e3a6, #c8a24a 48%, #efd68d);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18);
+  position: relative;
+}
+/* Οι δύο γραμμές επαφών του τσιπ */
+.acct-chip::before, .acct-chip::after {
+  content: ""; position: absolute; left: 3px; right: 3px; height: 1px;
+  background: rgba(0, 0, 0, .22);
+}
+.acct-chip::before { top: 7px; }
+.acct-chip::after { top: 13px; }
+.acct-wave { width: 16px; height: 16px; opacity: .75; flex: 0 0 auto; }
+.acct-mark { display: flex; opacity: .7; }
+.acct-mark svg { width: 19px; height: 19px; }
+
+.acct-balance { font-size: var(--fs-md); letter-spacing: -0.01em; line-height: 1.1; }
+.acct-balance.negative { color: #ffb4ad; }
+.acct-card-foot { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.acct-card .acct-name {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .07em; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.acct-card .acct-kind { font-size: var(--fs-xs); opacity: .68; }
+@media (max-width: 420px) {
+  .acct-card { padding: 9px 11px; border-radius: 12px; }
+  .acct-chip { width: 24px; height: 18px; }
+  .acct-chip::before { top: 6px; } .acct-chip::after { top: 11px; }
+}
 /* Σε στενή οθόνη τρία κουμπιά δεν χωράνε σε μία σειρά — η μεταφορά μένει εικονίδιο */
 @media (max-width: 520px) {
   #btnTransfer .btn-label { display: none; }
@@ -1201,7 +1250,7 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 /* ---- Ψηφία σταθερού πλάτους σε ό,τι είναι ποσό ----
    Χωρίς αυτό οι στήλες τρεμοπαίζουν καθώς αλλάζουν οι αριθμοί και δεν
    στοιχίζονται ποτέ κάθετα. */
-.price, .stat .value, .stat-sub, .acct-tile strong, .day-sum, .quick-chip strong,
+.price, .stat .value, .stat-sub, .acct-balance, .day-sum, .quick-chip strong,
 .drill-value, .drill-total strong, .fixed-row strong, .cal-out, .cal-in,
 .amount-in, .amount-out, .amount-move, .filter-count {
   font-variant-numeric: tabular-nums;
@@ -1209,13 +1258,19 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 }
 .today-value { font-size: var(--fs-md); display: flex; flex-direction: column; gap: 2px; }
 
-/* ---- Καρτέλες των Οικονομικών ---- */
-.fin-tabs {
-  display: flex; width: 100%; margin-bottom: var(--space-3);
-  overflow-x: auto; scrollbar-width: none;
+/* ---- Καρτέλες των Οικονομικών ----
+   Ακίνητη μπάρα: χωρίς οριζόντια κύλιση και χωρίς αναπήδηση στο πάτημα.
+   Και οι τέσσερις ετικέτες χωρούν — σε στενή οθόνη μικραίνουν αντί να ξεφεύγουν. */
+.fin-tabs { display: flex; width: 100%; margin-bottom: var(--space-3); }
+.fin-tabs .seg-btn { flex: 1 1 0; min-width: 0; padding: 8px 6px; white-space: nowrap; }
+.fin-tabs .seg-btn:active { transform: none; }
+@media (max-width: 460px) {
+  .fin-tabs { gap: 2px; padding: 2px; }
+  .fin-tabs .seg-btn { font-size: 11.5px; padding: 8px 2px; letter-spacing: -0.015em; }
 }
-.fin-tabs::-webkit-scrollbar { display: none; }
-.fin-tabs .seg-btn { flex: 1 1 0; padding: 8px 10px; white-space: nowrap; }
+@media (max-width: 350px) {
+  .fin-tabs .seg-btn { font-size: 10.5px; }
+}
 .seg-sm .seg-btn { padding: 5px 11px; min-height: 30px; font-size: 12.5px; }
 .card-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .card-head-row h3 { margin: 0; }

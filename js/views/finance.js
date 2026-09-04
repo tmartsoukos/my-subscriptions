@@ -30,6 +30,12 @@ const CAT_COLOR = {
 };
 const TRANSFER_COLOR = "#8592ad";
 
+// Το σήμα ανέπαφης πληρωμής — τρία τόξα, όπως πάνω σε κάθε κάρτα
+const CONTACTLESS = `<svg class="acct-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="2" stroke-linecap="round" aria-hidden="true">
+  <path d="M8 7a7 7 0 0 1 0 10"/><path d="M12 4.5a11 11 0 0 1 0 15"/><path d="M4.5 9.5a3.5 3.5 0 0 1 0 5"/>
+</svg>`;
+
 // Η σελίδα είχε γίνει έντεκα κάρτες στη σειρά. Τέσσερις καρτέλες με σκοπό
 // η καθεμιά· η ενεργή γράφεται στη διαδρομή (#/finance/list) ώστε να επιβιώνει
 // σε ανανέωση και να μοιράζεται ως σύνδεσμος.
@@ -393,10 +399,18 @@ create policy "own finance" on public.finance_entries
         // «Μετρητά / Μετρητά» είναι θόρυβος
         const kind = ACCOUNT_KINDS[a.kind] || "";
         const showKind = kind && kind.toLowerCase() !== (a.name || "").trim().toLowerCase();
-        return `<button class="acct-tile" data-drill="acct:${a.id}" style="--c:${escapeHtml(a.color || "#4c8dff")}">
-          <span class="acct-name">${escapeHtml(a.name)}</span>
-          <strong class="${balance < 0 ? "amount-out" : ""}">${fmt(balance)}</strong>
-          ${showKind ? `<span class="acct-kind">${escapeHtml(kind)}</span>` : ""}
+        // Τσιπ και ανέπαφη πληρωμή μόνο όπου βγάζουν νόημα: τα μετρητά δεν είναι πλαστικό
+        const plastic = a.kind === "card" || a.kind === "bank";
+        return `<button class="acct-card ${plastic ? "plastic" : "acct-" + a.kind}"
+          data-drill="acct:${a.id}" style="--c:${escapeHtml(a.color || "#4c8dff")}">
+          <span class="acct-card-top" aria-hidden="true">
+            ${plastic ? `<span class="acct-chip"></span>${CONTACTLESS}` : `<span class="acct-mark">${icons.wallet}</span>`}
+          </span>
+          <strong class="acct-balance ${balance < 0 ? "negative" : ""}">${fmt(balance)}</strong>
+          <span class="acct-card-foot">
+            <span class="acct-name">${escapeHtml(a.name)}</span>
+            ${showKind ? `<span class="acct-kind">${escapeHtml(kind)}</span>` : ""}
+          </span>
         </button>`;
       }).join("")}
     </div>

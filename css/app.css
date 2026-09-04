@@ -956,7 +956,11 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
   border-radius: 20px; padding: 40px 36px; width: 100%; max-width: 400px;
   box-shadow: var(--elev-3), var(--glow); text-align: center;
 }
-.auth-logo { width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 16px; background: var(--accent-grad); box-shadow: var(--glow); }
+.auth-logo {
+  width: 88px; height: 88px; margin: 0 auto 18px; border-radius: 22px;
+  background: url("../icon.svg") center / cover no-repeat;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .45);
+}
 .auth-card h1 { font-size: 23px; margin-bottom: 6px; }
 .auth-card h1 span { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .auth-sub { color: var(--muted); font-size: 13px; margin-bottom: 26px; }

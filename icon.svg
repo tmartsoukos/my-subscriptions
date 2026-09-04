@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <!-- Background subtle gradient -->
+    <linearGradient id="bgRealistic1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111625"/>
+      <stop offset="100%" stop-color="#080c16"/>
+    </linearGradient>
+
+    <!-- Card 1 (Bottom): Deep Navy Matte -->
+    <linearGradient id="cardMatte1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e263d"/>
+      <stop offset="100%" stop-color="#121828"/>
+    </linearGradient>
+
+    <!-- Card 2 (Middle): Indigo Brushed Metal -->
+    <linearGradient id="cardMatte2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a3356"/>
+      <stop offset="50%" stop-color="#1f2845"/>
+      <stop offset="100%" stop-color="#151c32"/>
+    </linearGradient>
+
+    <!-- Card 3 (Top Front): Premium Titanium Midnight Finish -->
+    <linearGradient id="cardTitanium" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#273252"/>
+      <stop offset="40%" stop-color="#182035"/>
+      <stop offset="100%" stop-color="#0e1424"/>
+    </linearGradient>
+
+    <!-- Card Top Bevel Highlight -->
+    <linearGradient id="bevelLight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.1"/>
+    </linearGradient>
+
+    <!-- Authentic Metallic Chip Shader -->
+    <linearGradient id="goldChip" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e2c076"/>
+      <stop offset="30%" stop-color="#c59b47"/>
+      <stop offset="70%" stop-color="#ebd59b"/>
+      <stop offset="100%" stop-color="#a47d2f"/>
+    </linearGradient>
+
+    <!-- Clean drop shadow for realistic physical stacking -->
+    <filter id="cardPhysShadow" x="-25%" y="-25%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#000000" flood-opacity="0.7"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Canvas Container / App Icon Base -->
+  <rect width="400" height="400" rx="80" fill="url(#bgRealistic1)"/>
+  <rect width="398" height="398" x="1" y="1" rx="79" fill="none" stroke="#232c45" stroke-width="1.5"/>
+
+  <!-- Physical Stack Group Perfectly Centered (Mark Only) -->
+  <g transform="translate(100, 105)">
+    <!-- Bottom Layered Card (Subtle angle, realistic offset) -->
+    <g transform="rotate(-6 100 95)" opacity="0.75" filter="url(#cardPhysShadow)">
+      <rect x="8" y="25" width="184" height="116" rx="14" fill="url(#cardMatte1)" stroke="#313d5e" stroke-width="1"/>
+      <rect x="22" y="38" width="28" height="6" rx="3" fill="#ffffff" opacity="0.08"/>
+    </g>
+
+    <!-- Middle Layered Card -->
+    <g transform="rotate(3 100 95)" opacity="0.9" filter="url(#cardPhysShadow)">
+      <rect x="8" y="32" width="184" height="116" rx="14" fill="url(#cardMatte2)" stroke="#43527a" stroke-width="1"/>
+      <rect x="24" y="46" width="36" height="7" rx="3.5" fill="#ffffff" opacity="0.12"/>
+    </g>
+
+    <!-- Front Premium Physical Card -->
+    <g transform="rotate(0 100 95)" filter="url(#cardPhysShadow)">
+      <!-- Card Body -->
+      <rect x="8" y="38" width="184" height="116" rx="14" fill="url(#cardTitanium)"/>
+      <!-- Realistic Bevel Edge (Laser cut border) -->
+      <rect x="8" y="38" width="184" height="116" rx="14" fill="none" stroke="url(#bevelLight)" stroke-width="1.5"/>
+
+      <!-- EMV Metallic Chip -->
+      <g transform="translate(26, 62)">
+        <rect width="32" height="24" rx="5" fill="url(#goldChip)"/>
+        <!-- Chip Circuit Grooves -->
+        <rect x="2" y="2" width="28" height="20" rx="3" fill="none" stroke="#684f18" stroke-width="0.8" opacity="0.7"/>
+        <path d="M 10 2 L 10 22 M 22 2 L 22 22 M 2 12 L 30 12" stroke="#684f18" stroke-width="0.8" opacity="0.7"/>
+      </g>
+
+      <!-- Contactless Wave Glyph (Precision Vector) -->
+      <path d="M 166 58 A 12 12 0 0 1 166 74" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+      <path d="M 172 52 A 20 20 0 0 1 172 80" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Precision Laser-Etched Financial Pulse Line -->
+      <path d="M 26 122 L 68 122 L 82 104 L 96 138 L 108 114 L 118 122 L 174 122" 
+            fill="none" stroke="#00f0ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Milestone Node -->
+      <circle cx="96" cy="138" r="3.5" fill="#ffffff"/>
+    </g>
+  </g>
+</svg>

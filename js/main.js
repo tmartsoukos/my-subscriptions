@@ -7,6 +7,7 @@ import { icons, toast } from "./ui.js";
 import { refreshBadge } from "./badge.js";
 import { loadPrefs, getStartRoute, paintTabs } from "./prefs.js";
 import { initScrollTop } from "./scrolltop.js";
+import { initPrivacy } from "./privacy.js";
 import { playIntro } from "./intro.js";
 import * as router from "./router.js";
 import * as dashboard from "./views/dashboard/index.js";
@@ -38,6 +39,7 @@ const eye = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 window.__icons = icons;   // τα χρειάζεται η δυναμική κάτω μπάρα
 document.querySelectorAll(".nav-ico").forEach(el => { el.innerHTML = icons[el.dataset.ico] || ""; });
 document.getElementById("togglePass").innerHTML = eye;
+initPrivacy();   // το κρύψιμο ποσών ισχύει από την πρώτη σχεδίαση, όχι μετά
 
 const authScreen = document.getElementById("authScreen");
 const app = document.getElementById("app");

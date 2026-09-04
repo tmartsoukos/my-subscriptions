@@ -7,7 +7,8 @@ export const id = "pins";
 function resolve(p, m) {
   if (p.kind === "subscription") {
     const x = m.subs.find(s => s.id === p.ref_id);
-    return x && { icon: logoFor(x), color: x.color, title: x.name,
+    // Το meta περνά από escapeHtml, οπότε το ποσό σημαδεύεται με σημαία και όχι με markup
+    return x && { icon: logoFor(x), color: x.color, title: x.name, money: true,
       meta: `${fmt(myShare(x))} · ${fmtDateShort(nextDue(x))}`, href: "#/subs" };
   }
   if (p.kind === "note") {
@@ -33,7 +34,7 @@ export function html(m) {
         <div class="logo logo-sm" ${dnaAttrs({ name: x.title }, `--logo:${x.color};background:${x.color};`)}>${x.icon}</div>
         <div class="card-main">
           <div class="name">${escapeHtml(x.title)}</div>
-          <div class="meta">${escapeHtml(x.meta || "")}</div>
+          <div class="meta ${x.money ? "money" : ""}">${escapeHtml(x.meta || "")}</div>
         </div>
       </a>`).join("")}
     </div>

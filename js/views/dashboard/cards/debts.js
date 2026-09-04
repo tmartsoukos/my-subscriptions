@@ -13,7 +13,7 @@ export const id = "debts";
 export function html(m) {
   if (!m.debtList.length) return "";
   return `<div class="chart-card" style="margin-top:12px">
-    <h3>Μου χρωστάνε · σύνολο ${fmt(m.owedTotal)}
+    <h3>Μου χρωστάνε · σύνολο <span class="money">${fmt(m.owedTotal)}</span>
       ${m.debtList.length > 1 ? `<button class="btn btn-ghost btn-sm" id="btnRemindAll" style="margin-left:auto">
         ${icons.send} Σε όλους</button>` : ""}
     </h3>
@@ -26,7 +26,7 @@ export function html(m) {
             <div class="name">${escapeHtml(name)}</div>
             <div class="meta">${escapeHtml(m.subsOf(name).map(s => s.name).join(", "))}</div>
           </div>
-          <div class="price">${fmt(amount)}</div>
+          <div class="price money">${fmt(amount)}</div>
           <button class="icon-btn subtle" data-settle="${escapeHtml(name)}"
             aria-label="Εξόφληση από ${escapeHtml(name)}">${icons.check}</button>
           <button class="icon-btn subtle" data-remind-person="${escapeHtml(name)}"

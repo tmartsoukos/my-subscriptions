@@ -244,7 +244,7 @@ function entryHtml(e) {
         <div class="meta">${bits.join(" · ")}</div>
       </div>
       <div class="card-right">
-        <div class="price ${transfer ? "amount-move" : income ? "amount-in" : "amount-out"}">${
+        <div class="price money ${transfer ? "amount-move" : income ? "amount-in" : "amount-out"}">${
           transfer ? "" : income ? "+" : "−"}${fmt(e.amount)}</div>
       </div>
       <div class="card-actions">
@@ -422,20 +422,20 @@ create policy "own finance" on public.finance_entries
 
   const statsBlock = `<div class="stats">
     ${accts.length ? `<div class="stat" data-drill="available"><div class="label">Διαθέσιμα</div>
-      <div class="value ${available < 0 ? "amount-out" : ""}">${fmt(available)}</div></div>` : ""}
+      <div class="value money ${available < 0 ? "amount-out" : ""}">${fmt(available)}</div></div>` : ""}
     <div class="stat" data-drill="today"><div class="label">Σήμερα</div>
-      <div class="value today-value">
+      <div class="value money today-value">
         <span class="${todayIn ? "amount-in" : ""}">+${fmt(todayIn)}</span>
         <span class="${todayOut ? "amount-out" : ""}">−${fmt(todayOut)}</span>
       </div>
     </div>
-    <div class="stat" data-drill="income"><div class="label">Έσοδα περιόδου</div><div class="value amount-in">${fmt(income)}</div></div>
-    <div class="stat" data-drill="expense"><div class="label">Έξοδα περιόδου</div><div class="value amount-out">${fmt(expense + fixed)}</div></div>
+    <div class="stat" data-drill="income"><div class="label">Έσοδα περιόδου</div><div class="value money amount-in">${fmt(income)}</div></div>
+    <div class="stat" data-drill="expense"><div class="label">Έξοδα περιόδου</div><div class="value money amount-out">${fmt(expense + fixed)}</div></div>
     <div class="stat" data-drill="balance"><div class="label">Ροή περιόδου</div>
-      <div class="value ${periodFlow >= 0 ? "amount-in" : "amount-out"}">${periodFlow >= 0 ? "+" : "−"}${fmt(Math.abs(periodFlow))}</div>
+      <div class="value money ${periodFlow >= 0 ? "amount-in" : "amount-out"}">${periodFlow >= 0 ? "+" : "−"}${fmt(Math.abs(periodFlow))}</div>
     </div>
     <div class="stat" data-drill="perday"><div class="label">Μέσο ημερήσιο έξοδο</div>
-      <div class="value">${fmt(perDay)}</div>
+      <div class="value money">${fmt(perDay)}</div>
       <div class="stat-sub">διάμεσος ${fmt(medianDay)}</div>
     </div>
   </div>`;

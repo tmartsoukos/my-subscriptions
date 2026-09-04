@@ -34,7 +34,7 @@ export function barChart(points) {
   const ticks = [0, 0.5, 1].map(f => {
     const y = padT + plotH * (1 - f);
     return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="${C.grid}" stroke-width="1"/>
-      <text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="${C.muted}">${Math.round(max * f)}€</text>`;
+      <text class="money" x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="${C.muted}">${Math.round(max * f)}€</text>`;
   }).join("");
 
   const bars = points.map((p, i) => {
@@ -45,7 +45,7 @@ export function barChart(points) {
       <title>${escapeHtml(p.label)}: ${fmt(p.value)}</title>
       <rect x="${x - 4}" y="${padT}" width="${barW + 8}" height="${plotH}" fill="transparent"/>
       <rect class="bar-rise" style="animation-delay:${i * 28}ms;transform-origin:${x + barW / 2}px ${padT + plotH}px" x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#4c8dff"/>
-      ${i === maxIdx && p.value > 0 ? `<text x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${C.text}">${Math.round(p.value)}€</text>` : ""}
+      ${i === maxIdx && p.value > 0 ? `<text class="money" x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${C.text}">${Math.round(p.value)}€</text>` : ""}
       <text x="${x + barW / 2}" y="${H - 8}" text-anchor="middle" font-size="10" fill="${C.muted}">${escapeHtml(p.label)}</text>
     </g>`;
   }).join("");
@@ -77,12 +77,12 @@ export function donutChart(items, centerLabel) {
   }).join("");
 
   const legend = items.map(x =>
-    `<span><i style="background:${x.color}"></i>${escapeHtml(x.label)} · ${fmt(x.value)}</span>`).join("");
+    `<span><i style="background:${x.color}"></i>${escapeHtml(x.label)} · <span class="money">${fmt(x.value)}</span></span>`).join("");
 
   return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <svg class="chart-svg" viewBox="0 0 ${size} ${size}" style="max-width:190px" role="img" aria-label="Κατανομή κόστους ανά κατηγορία">
       ${segs}
-      <text class="donut-label" x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="17" font-weight="700" fill="${C.text}">${escapeHtml(centerLabel)}</text>
+      <text class="donut-label money" x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="17" font-weight="700" fill="${C.text}">${escapeHtml(centerLabel)}</text>
       <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="${C.muted}">/ μήνα</text>
     </svg>
     <div class="legend" style="flex-direction:column;align-items:flex-start;gap:7px">${legend}</div>

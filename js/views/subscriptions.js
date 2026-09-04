@@ -278,7 +278,7 @@ function cardHtml(s) {
       const paid = m.paid_for === cycleIso;
       return `<button class="member-chip ${paid ? "paid" : "unpaid"}" data-paid="${s.id}:${i}"
         aria-label="${paid ? "Πληρώθηκε" : "Δεν πλήρωσε"}: ${escapeHtml(m.name)}">
-        ${paid ? "✓" : "•"} ${escapeHtml(m.name)} ${fmt(myShare(s))}</button>`;
+        ${paid ? "✓" : "•"} ${escapeHtml(m.name)} <span class="money">${fmt(myShare(s))}</span></button>`;
     }).join("")}
   </div>` : "";
 
@@ -295,13 +295,13 @@ function cardHtml(s) {
         <span class="chip">${mergedCategories("subscription", CATEGORIES)[s.category] || "Άλλο"}</span>
         ${shared ? `<span class="chip">${shareCount(s)} άτομα</span>` : ""}
       </div>
-      <div class="meta">${CYCLE_LABEL[s.cycle]} · ${trial ? "δωρεάν τώρα, μετά " : ""}${fmt(monthlyCost(s))}/μήνα${shared ? " (μερίδιό σου)" : ""}</div>
+      <div class="meta">${CYCLE_LABEL[s.cycle]} · ${trial ? "δωρεάν τώρα, μετά " : ""}<span class="money">${fmt(monthlyCost(s))}</span>/μήνα${shared ? " (μερίδιό σου)" : ""}</div>
       ${accountBits ? `<div class="acct-row">${accountBits}</div>` : ""}
       ${membersRow}
     </div>
     <div class="card-right">
-      <div class="price">${shared ? fmt(myShare(s)) : fmt(s.price)}</div>
-      <div class="cycle">ανά ${CYCLES[s.cycle]}${shared ? ` · σύνολο ${fmt(s.price)}` : ""}</div>
+      <div class="price money">${shared ? fmt(myShare(s)) : fmt(s.price)}</div>
+      <div class="cycle">ανά ${CYCLES[s.cycle]}${shared ? ` · σύνολο <span class="money">${fmt(s.price)}</span>` : ""}</div>
       <div class="due ${dueClass}">${dueText}</div>
     </div>
     <div class="card-actions">
@@ -335,11 +335,11 @@ export async function render(view) {
       <button class="btn btn-primary" id="btnAdd">${icons.plus} Νέα συνδρομή</button>
     </div>
     <div class="stats">
-      <div class="stat" data-drill="monthly"><div class="label">Μηνιαίο κόστος</div><div class="value">${fmt(monthly)} <small>/ μήνα</small></div></div>
-      <div class="stat" data-drill="yearly"><div class="label">Ετήσιο κόστος</div><div class="value">${fmt(monthly * 12)} <small>/ έτος</small></div></div>
+      <div class="stat" data-drill="monthly"><div class="label">Μηνιαίο κόστος</div><div class="value money">${fmt(monthly)} <small>/ μήνα</small></div></div>
+      <div class="stat" data-drill="yearly"><div class="label">Ετήσιο κόστος</div><div class="value money">${fmt(monthly * 12)} <small>/ έτος</small></div></div>
       <div class="stat" data-drill="active"><div class="label">Ενεργές</div><div class="value">${active.length}</div></div>
       ${trials.length ? `<div class="stat" data-drill="trials"><div class="label">Σε δοκιμή</div><div class="value">${trials.length} <small>(+${fmt(trialsMonthly)}/μήνα)</small></div></div>` : ""}
-      ${owed > 0 ? `<div class="stat" data-drill="owed"><div class="label">Μου χρωστάνε</div><div class="value">${fmt(owed)}</div></div>` : ""}
+      ${owed > 0 ? `<div class="stat" data-drill="owed"><div class="label">Μου χρωστάνε</div><div class="value money">${fmt(owed)}</div></div>` : ""}
     </div>
     ${sorted.length ? `<div class="section-title">Επερχόμενες πληρωμές</div><div class="list">${sorted.map(cardHtml).join("")}</div>`
       : `<div class="empty">${icons.card}<p>Δεν έχεις προσθέσει καμία συνδρομή ακόμα.</p><button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα συνδρομή</button></div>`}

@@ -189,14 +189,14 @@ a { color: inherit; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; padding: 0 var(--space-3) var(--space-5); }
 .brand img { border-radius: 9px; }
 .side-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.side-nav a, .side-bottom a, .side-logout {
+.side-nav a, .side-bottom a, .side-logout, .side-btn {
   display: flex; align-items: center; gap: 12px;
   padding: 11px var(--space-3); border-radius: var(--radius-sm);
   color: var(--muted); text-decoration: none; font-size: 14.5px; font-weight: 500;
   transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
   background: none; border: none; width: 100%; text-align: left;
 }
-.side-nav a:hover, .side-bottom a:hover, .side-logout:hover { color: var(--text); background: var(--surface); }
+.side-nav a:hover, .side-bottom a:hover, .side-logout:hover, .side-btn:hover { color: var(--text); background: var(--surface); }
 .side-nav a.active, .side-bottom a.active {
   color: #fff; background: linear-gradient(135deg, rgba(59,130,246,.25), rgba(124,108,246,.2));
   box-shadow: inset 0 0 0 1px var(--border-strong);
@@ -664,7 +664,7 @@ main#view {
    Κάθε αγγίξιμο στοιχείο απαντά με το ίδιο μικρό «βύθισμα». */
 .btn, .icon-btn, .filter-chip, .seg-btn, .member-chip, .todo-check,
 .color-dot, .stars .star, .cal-cell, .more-item, .note-card, .card[data-swipe],
-.tabbar a, .side-nav a, .side-bottom a, .side-logout, .mic-btn, .toast-btn {
+.tabbar a, .side-nav a, .side-bottom a, .side-logout, .side-btn, .mic-btn, .toast-btn {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -1246,6 +1246,22 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
   #btnTransfer .btn-label { display: none; }
 }
 .orphan-hint { margin: -4px 0 var(--space-4); cursor: pointer; }
+
+/* ---- Κρύψιμο ποσών ----
+   Θόλωμα, όχι απόκρυψη: η διάταξη μένει ακριβώς ίδια και τίποτα δεν αναπηδά
+   όταν το γυρνάς. Η ακτίνα δίνεται σε em ώστε να ταιριάζει σε κάθε μέγεθος. */
+.private :is(
+  .hero-value, .stat-sub, .acct-balance, .day-sum, .drill-meta,
+  .quick-chip strong, .drill-value, .drill-total strong, .fixed-row strong,
+  .cal-out, .cal-in, .amount-in, .amount-out, .amount-move, .filter-count,
+  .goal-head strong, .goal-note, .more-cell strong, .money
+) {
+  filter: blur(0.34em);
+  user-select: none;
+}
+/* Το κουμπί στην πλαϊνή μπάρα μοιράζεται το ύφος των υπόλοιπων γραμμών */
+.side-btn { color: var(--muted); font-size: 14.5px; text-align: left; width: 100%; background: none; border: none; }
+.side-btn[aria-pressed="true"], .icon-btn[data-privacy][aria-pressed="true"] { color: var(--accent); }
 
 /* ---- Ψηφία σταθερού πλάτους σε ό,τι είναι ποσό ----
    Χωρίς αυτό οι στήλες τρεμοπαίζουν καθώς αλλάζουν οι αριθμοί και δεν

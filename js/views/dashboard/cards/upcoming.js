@@ -16,7 +16,7 @@ export function html(m) {
         <div class="card-main"><div class="name">${escapeHtml(s.name)}${
           isInTrial(s) ? ` <span class="badge badge-trial">ΛΗΞΗ ΔΟΚΙΜΗΣ</span>` : ""}</div></div>
         <div class="card-right" style="width:auto;order:0;display:block;text-align:right">
-          <div class="price" style="font-size:14px">${fmt(myShare(s))}</div>
+          <div class="price money" style="font-size:14px">${fmt(myShare(s))}</div>
           <div class="due ${cls}" style="margin-top:0">${txt}</div>
         </div>
       </div>`;

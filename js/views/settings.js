@@ -3,6 +3,7 @@ import { FUNCTIONS_URL } from "../config.js";
 import { icons, toast, confirmModal, openModal, escapeHtml, fmt, haptic, CATEGORIES } from "../ui.js";
 import { pushSupported, isIOS, isStandalone, currentSubscription, enablePush, disablePush, getPrefs, savePrefs } from "../push.js";
 import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
+import { isPrivate, setPrivate } from "../privacy.js";
 import {
   ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
   uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories,
@@ -99,6 +100,10 @@ export async function render(view) {
           `<button class="accent-dot ${getAccent() === k ? "active" : ""}" data-accent="${k}"
             style="background:linear-gradient(135deg, ${a.c1}, ${a.c2})" title="${a.label}" aria-label="${a.label}"></button>`).join("")}
       </div>
+      <label class="check-row" style="margin-top:10px">
+        <input type="checkbox" id="fPrivate" ${isPrivate() ? "checked" : ""}>
+        <span>Κρύψιμο ποσών — όλα τα νούμερα θολώνουν. Γυρίζει και με το μάτι πάνω δεξιά, και ισχύει μόνο σε αυτή τη συσκευή</span>
+      </label>
       <label class="check-row" style="margin-top:10px">
         <input type="checkbox" id="fMood" ${moodEnabled() ? "checked" : ""}>
         <span>Ζωντανό φως — το φόντο δροσίζει όταν είσαι εντός στόχων και ζεσταίνει όταν πλησιάζεις τα όρια</span>
@@ -345,6 +350,10 @@ export async function render(view) {
   view.querySelector("#fStart").addEventListener("change", e => {
     setStartRoute(e.target.value);
     toast("Η αρχική σελίδα αποθηκεύτηκε");
+  });
+  view.querySelector("#fPrivate").addEventListener("change", e => {
+    setPrivate(e.target.checked);
+    toast(e.target.checked ? "Τα ποσά κρύφτηκαν" : "Τα ποσά ξαναφαίνονται");
   });
   view.querySelector("#fMood").addEventListener("change", e => {
     setMoodEnabled(e.target.checked);

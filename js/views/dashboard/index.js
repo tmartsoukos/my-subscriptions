@@ -33,7 +33,7 @@ function trialAlert(m) {
         const days = trialDaysLeft(s);
         const when = days === 0 ? "σήμερα" : days === 1 ? "αύριο" : `σε ${days} ημέρες`;
         const cycle = s.cycle === "yearly" ? "έτος" : s.cycle === "weekly" ? "εβδομάδα" : "μήνα";
-        return `<li><b>${escapeHtml(s.name)}</b> — ${when}, μετά ${fmt(myShare(s))} ανά ${cycle}. Ακύρωσε αν δεν το θες.</li>`;
+        return `<li><b>${escapeHtml(s.name)}</b> — ${when}, μετά <span class="money">${fmt(myShare(s))}</span> ανά ${cycle}. Ακύρωσε αν δεν το θες.</li>`;
       }).join("")}</ul>
     </div>
   </div>`;

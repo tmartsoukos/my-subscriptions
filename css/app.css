@@ -1259,6 +1259,9 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 .err-msg { color: var(--danger); font-size: var(--fs-sm); word-break: break-word; }
 .err-when { color: var(--muted); font-size: var(--fs-xs); }
 
+/* Τα εικονίδια είναι <use> πάνω στο sprite· χωρίς μέγεθος ένα SVG πιάνει 300x150 */
+.ico { width: 20px; height: 20px; flex: 0 0 auto; }
+
 /* ---- Κρύψιμο ποσών ----
    Θόλωμα, όχι απόκρυψη: η διάταξη μένει ακριβώς ίδια και τίποτα δεν αναπηδά
    όταν το γυρνάς. Η ακτίνα δίνεται σε em ώστε να ταιριάζει σε κάθε μέγεθος. */

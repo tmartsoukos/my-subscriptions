@@ -9,6 +9,24 @@ globalThis.localStorage = {
   clear: () => store.clear()
 };
 
+// Το db.js φτιάχνει πελάτη Supabase τη στιγμή που φορτώνεται. Στις δοκιμές δεν
+// μιλάμε με τη βάση — χρειάζεται μόνο να μη σκάσει το import.
+const noop = () => noop;
+globalThis.window = globalThis.window || {};
+globalThis.window.supabase = {
+  createClient: () => ({
+    from: () => new Proxy({}, { get: () => noop }),
+    auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
+    storage: { from: () => ({}) }
+  })
+};
+// Το navigator του Node είναι read-only: το συμπληρώνουμε με defineProperty
+if (!("onLine" in globalThis.navigator)) {
+  Object.defineProperty(globalThis, "navigator", {
+    value: { onLine: true, userAgent: "node" }, configurable: true
+  });
+}
+
 // Βοηθός δοκιμών: ορίζει την ώρα που αρχίζει η μέρα
 export function setDayStart(hour) {
   if (hour) localStorage.setItem("pref:daystart", String(hour));

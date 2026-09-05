@@ -4,7 +4,7 @@ import {
   getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData,
   onQueueChange, queuedCount, flushQueue
 } from "./db.js";
-import { icons, toast } from "./ui.js";
+import { icons, toast, mountIconSprite } from "./ui.js";
 import { refreshBadge } from "./badge.js";
 import { loadPrefs, getStartRoute, paintTabs } from "./prefs.js";
 import { initScrollTop } from "./scrolltop.js";
@@ -38,6 +38,7 @@ router.register("settings", settingsView.render);
 
 // Εικονίδια πλοήγησης
 const eye = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+mountIconSprite();       // τα σχήματα μία φορά· κάθε χρήση είναι <use>
 window.__icons = icons;   // τα χρειάζεται η δυναμική κάτω μπάρα
 document.querySelectorAll(".nav-ico").forEach(el => { el.innerHTML = icons[el.dataset.ico] || ""; });
 document.getElementById("togglePass").innerHTML = eye;
@@ -115,6 +116,11 @@ async function syncPending() {
   }
 }
 window.addEventListener("online", syncPending);
+// Το κινητό συχνά ξαναβρίσκει δίκτυο ενώ η εφαρμογή είναι στο παρασκήνιο:
+// μόλις ξαναγίνει ορατή, στέλνουμε ό,τι περιμένει.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") syncPending();
+});
 
 // Auth φόρμα
 const authError = document.getElementById("authError");
@@ -182,6 +188,8 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js");
   // Πάτημα σε ειδοποίηση: η ανοιχτή καρτέλα πηγαίνει στο σημείο που αφορά
   navigator.serviceWorker.addEventListener("message", e => {
+    // Το Background Sync ξύπνησε τον service worker: στέλνουμε την ουρά
+    if (e.data?.type === "flush") { syncPending(); return; }
     const hash = e.data?.type === "navigate" ? e.data.hash : null;
     if (typeof hash === "string" && /^#\/[a-z/-]*$/i.test(hash)) location.hash = hash;
   });

@@ -1,4 +1,4 @@
-const CACHE = "dash-v32";
+const CACHE = "dash-v33";
 const ASSETS = [
   "./", "index.html", "manifest.json", "icon.svg",
   "icon-192.png", "icon-512.png", "icon-maskable-512.png", "icon-income.png", "icon-expense.png",
@@ -61,6 +61,18 @@ self.addEventListener("notificationclick", e => {
       }
     }
     await self.clients.openWindow(target);
+  })());
+});
+
+// ---- Συγχρονισμός στο παρασκήνιο ----
+// Όταν γυρίσει το δίκτυο, το λειτουργικό ξυπνά τον service worker ακόμα κι αν
+// η εφαρμογή είναι στο παρασκήνιο. Η ουρά ζει στο localStorage, που δεν το
+// βλέπει ο service worker — οπότε ειδοποιούμε την εφαρμογή να τη στείλει εκείνη.
+self.addEventListener("sync", e => {
+  if (e.tag !== "flush-queue") return;
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of all) c.postMessage({ type: "flush" });
   })());
 });
 

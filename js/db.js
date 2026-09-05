@@ -63,7 +63,19 @@ function writeQueue(q) {
 export function onQueueChange(cb) { queueListeners.push(cb); }
 export function queuedCount() { return readQueue().length; }
 
-function enqueue(op) { writeQueue([...readQueue(), { ...op, at: Date.now() }]); }
+function enqueue(op) {
+  writeQueue([...readQueue(), { ...op, at: Date.now() }]);
+  requestBackgroundSync();
+}
+
+// Ζητάμε από το λειτουργικό να μας ξυπνήσει όταν γυρίσει το δίκτυο. Χωρίς αυτό,
+// η ουρά φεύγει μόνο όταν ανοίξεις ξανά την εφαρμογή.
+export function requestBackgroundSync() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.ready
+    .then(reg => reg.sync?.register("flush-queue"))
+    .catch(() => { /* το Background Sync δεν υπάρχει παντού — δεν πειράζει */ });
+}
 
 const cacheOf = table => {
   try { return JSON.parse(localStorage.getItem("cache:" + table)) || []; } catch { return []; }

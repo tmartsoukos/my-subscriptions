@@ -1,10 +1,11 @@
 import { subscriptions } from "../db.js";
 import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
-  isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, unpaidMembers,
+  isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, memberShare, unpaidMembers, unpaidShares,
   CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
   colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills, sendReminder, sendGroupReminder
 } from "../ui.js";
+import { sumAmounts } from "../money.js";
 import { logoFor, dnaAttrs } from "../logos.js";
 import { mergedCategories, prefs, pins } from "../prefs.js";
 
@@ -183,7 +184,7 @@ function openForm(sub, rerender, from) {
 // Διαλέγεις ποιον θα ειδοποιήσεις· το μήνυμα ανοίγει στο φύλλο κοινοποίησης
 // και το στέλνεις εσύ — η εφαρμογή δεν στέλνει τίποτα μόνη της.
 function openRemind(sub, from) {
-  const unpaid = unpaidMembers(sub);
+  const unpaid = unpaidShares(sub);
   const when = fmtDate(nextDue(sub));
   openModal({
     from,
@@ -194,7 +195,7 @@ function openRemind(sub, from) {
         ${unpaid.map((m, i) => `<div class="drill-row">
           <div class="drill-main">
             <div class="drill-label">${escapeHtml(m.name)}</div>
-            <div class="drill-meta">μερίδιο ${fmt(myShare(sub))}</div>
+            <div class="drill-meta">μερίδιο ${fmt(m.amount)}</div>
           </div>
           <button class="btn btn-ghost btn-sm" data-send="${i}">${icons.send} Μήνυμα</button>
         </div>`).join("")}
@@ -205,14 +206,15 @@ function openRemind(sub, from) {
       overlay.addEventListener("click", async e => {
         if (e.target.closest("[data-send-all]")) {
           await sendGroupReminder(
-            unpaid.map(m => ({ name: m.name, amount: myShare(sub) })),
+            unpaid.map(m => ({ name: m.name, amount: m.amount })),
             { intro: `Υπενθύμιση για το «${sub.name}» — χρέωση ${when}:`, title: `Υπενθύμιση — ${sub.name}` }
           );
           return;
         }
         const b = e.target.closest("[data-send]");
         if (!b) return;
-        await sendReminder([{ name: sub.name, amount: myShare(sub), date: when }], unpaid[+b.dataset.send]?.name);
+        const who = unpaid[+b.dataset.send];
+        await sendReminder([{ name: sub.name, amount: who?.amount ?? 0, date: when }], who?.name);
       });
     }
   });
@@ -278,7 +280,7 @@ function cardHtml(s) {
       const paid = m.paid_for === cycleIso;
       return `<button class="member-chip ${paid ? "paid" : "unpaid"}" data-paid="${s.id}:${i}"
         aria-label="${paid ? "Πληρώθηκε" : "Δεν πλήρωσε"}: ${escapeHtml(m.name)}">
-        ${paid ? "✓" : "•"} ${escapeHtml(m.name)} <span class="money">${fmt(myShare(s))}</span></button>`;
+        ${paid ? "✓" : "•"} ${escapeHtml(m.name)} <span class="money">${fmt(memberShare(s, i))}</span></button>`;
     }).join("")}
   </div>` : "";
 
@@ -325,9 +327,9 @@ export async function render(view) {
   const sorted = [...items].sort((a, b) => nextDue(a) - nextDue(b));
   const active = items.filter(s => !isInTrial(s));
   const trials = items.filter(isInTrial);
-  const monthly = active.reduce((sum, s) => sum + monthlyCost(s), 0);
-  const trialsMonthly = trials.reduce((sum, s) => sum + monthlyCost(s), 0);
-  const owed = items.reduce((sum, s) => sum + unpaidMembers(s).length * myShare(s), 0);
+  const monthly = sumAmounts(active, monthlyCost);
+  const trialsMonthly = sumAmounts(trials, monthlyCost);
+  const owed = sumAmounts(items.flatMap(s => unpaidShares(s)), m => m.amount);
 
   view.innerHTML = `
     <div class="page-head">
@@ -349,7 +351,7 @@ export async function render(view) {
 
   // Ανάλυση των αριθμών της κορυφής
   const debts = {};
-  for (const s of items) for (const m of unpaidMembers(s)) debts[m.name] = (debts[m.name] || 0) + myShare(s);
+  for (const s of items) for (const m of unpaidShares(s)) debts[m.name] = sumAmounts([debts[m.name] || 0, m.amount]);
   bindDrills(view, {
     monthly: () => ({
       title: "Μηνιαίο κόστος",

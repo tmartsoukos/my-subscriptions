@@ -4,6 +4,7 @@ import { icons, toast, confirmModal, openModal, escapeHtml, fmt, haptic, CATEGOR
 import { pushSupported, isIOS, isStandalone, currentSubscription, enablePush, disablePush, getPrefs, savePrefs } from "../push.js";
 import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
 import { isPrivate, setPrivate } from "../privacy.js";
+import { recentErrors, clearErrors } from "../errors.js";
 import {
   ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
   uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories,
@@ -176,6 +177,14 @@ export async function render(view) {
       κρέμεται από μια άλλη — π.χ. «Καφές» κάτω από το «Φαγητό». Τα σύνολα αθροίζονται στη γονική.</p>
       <div class="mini-list" id="catList"></div>
       <button class="btn btn-ghost btn-sm" id="btnAddCat">${icons.plus} Νέα κατηγορία</button>
+    </div>
+
+    <div class="settings-block">
+      <h3>${icons.bell} Καταγραφή σφαλμάτων</h3>
+      <p>Ό,τι σκάει στην εφαρμογή γράφεται εδώ, με τη διαδρομή και τη συσκευή.
+      Χωρίς αυτό, ένα σφάλμα στο κινητό εξαφανίζεται χωρίς να το μάθει κανείς.</p>
+      <div class="mini-list" id="errList"><p class="hint">Φόρτωση...</p></div>
+      <button class="btn btn-ghost btn-sm" id="btnClearErrors">${icons.trash} Καθαρισμός</button>
     </div>
 
     <div class="settings-block">
@@ -576,6 +585,32 @@ export async function render(view) {
   });
 
   view.querySelector("#btnAddAcct").addEventListener("click", () => openAcctForm(null));
+
+  // ---- Σφάλματα ----
+  async function drawErrors() {
+    const box = view.querySelector("#errList");
+    try {
+      const rows = await recentErrors(15);
+      box.innerHTML = rows.length
+        ? rows.map(r => `<div class="mini-row err-row">
+            <span><b>${escapeHtml(r.where_at || "άγνωστο σημείο")}</b>
+              <span class="err-msg">${escapeHtml(r.message)}</span>
+              <span class="err-when">${new Date(r.created_at).toLocaleString("el-GR")}${
+                r.route ? " · " + escapeHtml(r.route) : ""}</span></span>
+          </div>`).join("")
+        : `<p class="hint">Κανένα σφάλμα. Έτσι πρέπει.</p>`;
+    } catch (e) {
+      // Ο πίνακας μπορεί να μην έχει δημιουργηθεί ακόμα
+      box.innerHTML = `<p class="hint">Ο πίνακας δεν υπάρχει ακόμα στη βάση. Τρέξε το
+        <code>supabase/migrations/013_error_log.sql</code> στο SQL Editor του Supabase.</p>`;
+    }
+  }
+  drawErrors();
+
+  view.querySelector("#btnClearErrors").addEventListener("click", async () => {
+    try { await clearErrors(); toast("Καθαρίστηκαν"); } catch { toast("Δεν καθαρίστηκαν", "error"); }
+    drawErrors();
+  });
 
   view.querySelector("#btnAddGoal").addEventListener("click", () => {
     openModal({

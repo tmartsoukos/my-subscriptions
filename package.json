@@ -1,0 +1,11 @@
+{
+  "name": "my-subscriptions",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Προσωπικό dashboard: συνδρομές, οικονομικά, εργασίες",
+  "scripts": {
+    "test": "node --test",
+    "check": "node tools/check-syntax.js"
+  }
+}

@@ -2,8 +2,9 @@
 // επιστρέφει το μοντέλο που διαβάζουν οι κάρτες. Καμία κάρτα δεν ξαναϋπολογίζει τα ίδια.
 import {
   fmt, isoLocal, today, daysUntil, nextDue, monthlyCost,
-  isInTrial, trialDaysLeft, myShare, unpaidMembers, CATEGORIES
+  isInTrial, trialDaysLeft, unpaidMembers, unpaidShares, CATEGORIES
 } from "../../ui.js";
+import { sumAmounts } from "../../money.js";
 import { CATEGORY_COLORS } from "../../charts.js";
 import { prefs, getLayout } from "../../prefs.js";
 
@@ -36,10 +37,10 @@ export function buildModel({ subs, todoItems, evItems, finItems, noteItems, cour
   // ---- Οφειλές ανά πρόσωπο (μοιρασμένες συνδρομές που δεν πληρώθηκαν) ----
   const debts = {};
   for (const s of subs) {
-    for (const m of unpaidMembers(s)) debts[m.name] = (debts[m.name] || 0) + myShare(s);
+    for (const m of unpaidShares(s)) debts[m.name] = sumAmounts([debts[m.name] || 0, m.amount]);
   }
   const debtList = Object.entries(debts).sort((a, b) => b[1] - a[1]);
-  const owedTotal = debtList.reduce((sum, [, v]) => sum + v, 0);
+  const owedTotal = sumAmounts(debtList, ([, v]) => v);
   const subsOf = name => subs.filter(s => unpaidMembers(s).some(m => m.name === name));
 
   // ---- Δοκιμές που λήγουν σύντομα — η πιο επείγουσα πληροφορία ----

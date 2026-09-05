@@ -1,4 +1,5 @@
 import "./theme.js";
+
 import {
   getSession, onAuthChange, signIn, signUp, signOut, onOfflineChange, migrateLocalData,
   onQueueChange, queuedCount, flushQueue
@@ -8,6 +9,7 @@ import { refreshBadge } from "./badge.js";
 import { loadPrefs, getStartRoute, paintTabs } from "./prefs.js";
 import { initScrollTop } from "./scrolltop.js";
 import { initPrivacy } from "./privacy.js";
+import { initErrorLog, logError } from "./errors.js";
 import { playIntro } from "./intro.js";
 import * as router from "./router.js";
 import * as dashboard from "./views/dashboard/index.js";
@@ -39,6 +41,7 @@ const eye = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 window.__icons = icons;   // τα χρειάζεται η δυναμική κάτω μπάρα
 document.querySelectorAll(".nav-ico").forEach(el => { el.innerHTML = icons[el.dataset.ico] || ""; });
 document.getElementById("togglePass").innerHTML = eye;
+initErrorLog(); // πρώτο απ’ όλα: ό,τι σκάσει από δω και πέρα καταγράφεται
 initPrivacy();   // το κρύψιμο ποσών ισχύει από την πρώτη σχεδίαση, όχι μετά
 
 const authScreen = document.getElementById("authScreen");
@@ -99,14 +102,17 @@ onQueueChange(paintOfflineBanner);
 // Μόλις γυρίσει η σύνδεση, φεύγει ό,τι έχει μαζευτεί
 async function syncPending() {
   if (!queuedCount()) return;
-  const { done, dropped } = await flushQueue();
+  const { done, dropped, reasons } = await flushQueue();
   paintOfflineBanner();
   if (done) {
     toast(done === 1 ? "Η αλλαγή στάλθηκε" : `Στάλθηκαν ${done} αλλαγές`);
     router.render();
     refreshBadge();
   }
-  if (dropped) toast(`${dropped === 1 ? "Μία αλλαγή" : `${dropped} αλλαγές`} δεν στάλθηκαν`, "error");
+  if (dropped) {
+    logError("queue.dropped", { message: reasons.join(" | ") || `${dropped} αλλαγές χάθηκαν` });
+    toast(`${dropped === 1 ? "Μία αλλαγή" : `${dropped} αλλαγές`} δεν στάλθηκαν`, "error");
+  }
 }
 window.addEventListener("online", syncPending);
 

@@ -1,7 +1,6 @@
 // Ημερολόγιο χρημάτων: ένας μήνας με τα ποσά πάνω στις μέρες.
 // Πίσω από σήμερα δείχνει τι έγινε, μπροστά τι έρχεται από τις συνδρομές.
 import { escapeHtml, fmt, isoLocal, today, nextDue } from "./ui.js";
-import { isFlow } from "./money.js";
 
 const WEEKDAYS = ["Δε", "Τρ", "Τε", "Πε", "Πα", "Σα", "Κυ"];
 const MONTHS = ["Ιανουάριος", "Φεβρουάριος", "Μάρτιος", "Απρίλιος", "Μάιος", "Ιούνιος",
@@ -25,7 +24,8 @@ export function chargeDates(sub, fromIso, toIso) {
 }
 
 // month: Date οποιασδήποτε ημέρας του μήνα που δείχνουμε
-export function monthCalendar({ month, entries, subs = [] }) {
+// daily: ημερήσια σύνολα από τη βάση — { entry_date, income, expense }
+export function monthCalendar({ month, daily = [], subs = [] }) {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
   const fromIso = isoLocal(first);
@@ -33,10 +33,10 @@ export function monthCalendar({ month, entries, subs = [] }) {
   const todayIso = isoLocal(today());
 
   const out = {}, inc = {};
-  for (const e of entries) {
-    if (!isFlow(e) || e.entry_date < fromIso || e.entry_date > toIso) continue;
-    const bag = e.kind === "income" ? inc : out;
-    bag[e.entry_date] = (bag[e.entry_date] || 0) + Number(e.amount);
+  for (const d of daily) {
+    if (d.entry_date < fromIso || d.entry_date > toIso) continue;
+    if (Number(d.expense)) out[d.entry_date] = Number(d.expense);
+    if (Number(d.income)) inc[d.entry_date] = Number(d.income);
   }
 
   // Προγραμματισμένες χρεώσεις — μόνο από σήμερα και μπροστά

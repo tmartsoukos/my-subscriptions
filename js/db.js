@@ -84,21 +84,24 @@ function runOp(op) {
 }
 
 let flushing = false;
-// Επιστρέφει { done, dropped }. Οι πράξεις φεύγουν με τη σειρά που έγιναν·
+// Επιστρέφει { done, dropped, reasons }. Οι πράξεις φεύγουν με τη σειρά που έγιναν·
 // αν πέσει πάλι το δίκτυο, ό,τι μένει περιμένει την επόμενη φορά.
 export async function flushQueue() {
-  if (flushing) return { done: 0, dropped: 0 };
+  if (flushing) return { done: 0, dropped: 0, reasons: [] };
   flushing = true;
   let done = 0, dropped = 0;
+  const reasons = [];
   try {
     let q = readQueue();
     while (q.length) {
+      const op = q[0];
       try {
-        await runOp(q[0]);
+        await runOp(op);
         done++;
       } catch (e) {
-        if (isNetworkError(e)) { setOffline(true); return { done, dropped }; }
+        if (isNetworkError(e)) { setOffline(true); return { done, dropped, reasons }; }
         dropped++;   // μόνιμο σφάλμα (π.χ. η εγγραφή δεν υπάρχει πια) — δεν ξαναδοκιμάζεται
+        reasons.push(`${op.op} ${op.table}: ${e.message || e}`);
       }
       q.shift();
       writeQueue(q);
@@ -107,7 +110,7 @@ export async function flushQueue() {
   } finally {
     flushing = false;
   }
-  return { done, dropped };
+  return { done, dropped, reasons };
 }
 
 // Αν λείπει στήλη από τη βάση (δεν έχει τρέξει ακόμα το migration), αφαίρεσέ την
@@ -177,6 +180,39 @@ export function store(table, orderColumn, ascending = true) {
         return rows.find(r => r.id === id) || { id, ...patch };
       }
     },
+    // Μόνο ό,τι πέφτει μέσα σε ένα διάστημα ημερομηνιών. Έτσι η σελίδα κατεβάζει
+    // την περίοδο που βλέπεις, όχι όλη την ιστορία σου.
+    async between(column, from, to, { limit } = {}) {
+      const inRange = r => r[column] >= from && r[column] <= to;
+      try {
+        if (readQueue().length) await flushQueue();
+        let q = sb.from(table).select("*").gte(column, from).lte(column, to);
+        if (orderColumn) q = q.order(orderColumn, { ascending });
+        if (limit) q = q.limit(limit);
+        const { data, error } = await q;
+        if (error) throw error;
+        setOffline(false);
+        return data;
+      } catch (e) {
+        if (isNetworkError(e)) {
+          setOffline(true);
+          return cacheOf(table).filter(inRange);
+        }
+        throw e;
+      }
+    },
+    // Ελεύθερο ερώτημα, για τις περιπτώσεις που δεν καλύπτει το between
+    async query(build) {
+      const { data, error } = await build(sb.from(table).select("*"));
+      if (error) throw error;
+      return data || [];
+    },
+    // Πόσες εγγραφές ταιριάζουν, χωρίς να κατέβει καμία
+    async count(build = q => q) {
+      const { count, error } = await build(sb.from(table).select("id", { count: "exact", head: true }));
+      if (error) throw error;
+      return count || 0;
+    },
     async remove(id) {
       try {
         const { error } = await sb.from(table).delete().eq("id", id);
@@ -201,6 +237,22 @@ export const courses = store("courses", "semester");
 export const health = store("health_items", "item_date");
 export const finance = store("finance_entries", "entry_date", false);
 export const accounts = store("accounts", "sort");
+
+// ---- Όψεις μόνο για ανάγνωση ----
+// Τα αθροίσματα τα κάνει η βάση· εδώ μόνο τα διαβάζουμε.
+export function view(name) {
+  return {
+    async list(build = q => q) {
+      const { data, error } = await build(sb.from(name).select("*"));
+      if (error) throw error;
+      return data || [];
+    }
+  };
+}
+
+export const accountBalancesView = view("account_balances");
+export const financeDailyView = view("finance_daily");
+export const financeStatsView = view("finance_stats");
 
 // ---- Εικόνες σημειώσεων (ιδιωτικός κάδος, πρόσβαση με signed URL) ----
 const BUCKET = "note-images";

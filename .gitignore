@@ -1,1 +1,7 @@
 .claude/
+node_modules/
+
+# Προσωρινά αρχεία δοκιμών — δεν ανεβαίνουν ποτέ
+dev-harness.html
+js/dev-stub.js
+js/dev-seed.js

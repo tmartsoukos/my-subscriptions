@@ -1254,6 +1254,11 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 }
 .orphan-hint { margin: -4px 0 var(--space-4); cursor: pointer; }
 
+/* Καταγραφή σφαλμάτων στις Ρυθμίσεις */
+.err-row span { display: block; }
+.err-msg { color: var(--danger); font-size: var(--fs-sm); word-break: break-word; }
+.err-when { color: var(--muted); font-size: var(--fs-xs); }
+
 /* ---- Κρύψιμο ποσών ----
    Θόλωμα, όχι απόκρυψη: η διάταξη μένει ακριβώς ίδια και τίποτα δεν αναπηδά
    όταν το γυρνάς. Η ακτίνα δίνεται σε em ώστε να ταιριάζει σε κάθε μέγεθος. */

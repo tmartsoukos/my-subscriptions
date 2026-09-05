@@ -1,11 +1,11 @@
-const CACHE = "dash-v30";
+const CACHE = "dash-v32";
 const ASSETS = [
   "./", "index.html", "manifest.json", "icon.svg",
   "icon-192.png", "icon-512.png", "icon-maskable-512.png", "icon-income.png", "icon-expense.png",
   "css/app.css",
   "js/main.js", "js/config.js", "js/db.js", "js/ui.js", "js/router.js", "js/charts.js",
   "js/logos.js", "js/voice.js", "js/markdown.js", "js/theme.js", "js/push.js", "js/skeleton.js",
-  "js/badge.js", "js/scrolltop.js", "js/prefs.js", "js/privacy.js", "js/ask.js", "js/askstage.js", "js/heatmap.js", "js/intro.js",
+  "js/badge.js", "js/scrolltop.js", "js/prefs.js", "js/privacy.js", "js/errors.js", "js/ask.js", "js/askstage.js", "js/heatmap.js", "js/intro.js",
   "js/money.js", "js/moneycal.js",
   "js/views/dashboard/index.js", "js/views/dashboard/model.js", "js/views/dashboard/drills.js",
   "js/views/dashboard/cards/hero.js", "js/views/dashboard/cards/pins.js", "js/views/dashboard/cards/stats.js",

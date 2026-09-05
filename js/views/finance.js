@@ -1,4 +1,6 @@
-import { finance, subscriptions } from "../db.js";
+import {
+  finance, subscriptions, accountBalancesView, financeDailyView, financeStatsView, isMissingTable
+} from "../db.js";
 import {
   escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, today, icons, toast, toastAction,
   openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml,
@@ -8,7 +10,7 @@ import { param } from "../router.js";
 import { barChart, donutChart } from "../charts.js";
 import { heatmap } from "../heatmap.js";
 import { monthCalendar } from "../moneycal.js";
-import { median, isFlow, withoutAccount, ACCOUNT_KINDS, balances, totalBalance } from "../money.js";
+import { median, isFlow, ACCOUNT_KINDS, sumAmounts, toCents, fromCents } from "../money.js";
 import {
   prefs, mergedCategories, categoryColors, categoryOptionsHtml, rootCategory, childrenOf,
   accountList, accountById, defaultAccountId, rememberAccount
@@ -46,8 +48,18 @@ const TABS = {
   calendar: "Ημερολόγιο"
 };
 
+// Δεν κατεβάζουμε ποτέ ολόκληρο τον πίνακα. Κρατάμε:
+//  items  — οι κινήσεις της περιόδου που βλέπεις (αυτές που δείχνει η λίστα)
+//  daily  — ημερήσια σύνολα από τη βάση, για γραφήματα και ημερολόγιο
+//  acctBalances / stats — έτοιμα αθροίσματα από τις όψεις
 let items = [];
+let daily = [];
+let acctBalances = [];
+let stats = { no_account: 0, entries: 0 };
 let subs = [];
+const HEATMAP_DAYS = 190;   // ο χάρτης θερμότητας δείχνει 26 εβδομάδες
+const PAGE = 60;            // πόσες κινήσεις δείχνει η λίστα πριν το «περισσότερα»
+let shownCount = PAGE;
 let range = "month";       // today | week | month
 let tableMissing = false;
 let calMonth = null;       // ποιον μήνα δείχνει το ημερολόγιο χρημάτων
@@ -109,7 +121,7 @@ function inRange(e) {
 
 // Σταθερά έξοδα συνδρομών, ανηγμένα στην περίοδο που βλέπουμε
 function subsCost() {
-  const monthly = subs.filter(s => !isInTrial(s)).reduce((sum, s) => sum + monthlyCost(s), 0);
+  const monthly = sumAmounts(subs.filter(s => !isInTrial(s)), monthlyCost);
   if (range === "today") return monthly / 30;
   if (range === "week") return monthly * 7 / 30;
   return monthly;
@@ -255,39 +267,66 @@ function entryHtml(e) {
   </div>`;
 }
 
-// Σύνολο εξόδων ανά ημέρα, για τον χάρτη θερμότητας
-function expenseByDay() {
-  const out = {};
-  for (const e of items) {
-    if (e.kind === "expense") out[e.entry_date] = (out[e.entry_date] || 0) + Number(e.amount);
-  }
-  return out;
-}
+// Τα ημερήσια σύνολα έρχονται έτοιμα από τη βάση· εδώ μόνο τα ευρετηριάζουμε.
+const expenseByDay = () => Object.fromEntries(
+  daily.filter(d => Number(d.expense) > 0).map(d => [d.entry_date, Number(d.expense)]));
 
 // Ημερήσια έξοδα των τελευταίων 14 ημερών, για το ραβδόγραμμα
 function dailySeries() {
+  const byDate = expenseByDay();
   const out = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(today()); d.setDate(d.getDate() - i);
-    const iso = isoLocal(d);
-    const sum = items.filter(e => e.kind === "expense" && e.entry_date === iso)
-      .reduce((s, e) => s + Number(e.amount), 0);
-    out.push({ label: d.toLocaleDateString("el-GR", { day: "numeric" }), value: sum });
+    out.push({
+      label: d.toLocaleDateString("el-GR", { day: "numeric" }),
+      value: byDate[isoLocal(d)] || 0
+    });
   }
   return out;
 }
 
+// Το παράθυρο ημερήσιων συνόλων που χρειάζεται η οθόνη: ο χάρτης θερμότητας,
+// το ραβδόγραμμα και ο μήνας που δείχνει το ημερολόγιο.
+function dailyWindow() {
+  const back = new Date(today());
+  back.setDate(back.getDate() - HEATMAP_DAYS);
+  const monthStart = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+  const monthEnd = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0);
+  const from = monthStart < back ? monthStart : back;
+  const to = monthEnd > today() ? monthEnd : today();
+  return [isoLocal(from), isoLocal(to)];
+}
+
 export async function render(view, { cached = false } = {}) {
-  try {
-    if (!cached) [items, subs] = await Promise.all([finance.list(), subscriptions.list()]);
-    tableMissing = false;
-  } catch (e) {
-    // Ο πίνακας μπορεί να μην έχει δημιουργηθεί ακόμα
-    if (/finance_entries/.test(e.message || "") || e.code === "PGRST205" || e.code === "42P01") {
-      tableMissing = true;
-      items = [];
-      subs = await subscriptions.list().catch(() => []);
-    } else throw e;
+  if (!calMonth) calMonth = new Date(today().getFullYear(), today().getMonth(), 1);
+
+  if (!cached) {
+    try {
+      // Τέσσερα μικρά ερωτήματα αντί για ένα τεράστιο: οι κινήσεις της περιόδου,
+      // τα ημερήσια σύνολα του παραθύρου, τα υπόλοιπα και οι μετρήσεις — έτοιμα
+      // από τη βάση. Το μέγεθος του ιστορικού δεν επηρεάζει πια τον χρόνο ανοίγματος.
+      const [dailyFrom, dailyTo] = dailyWindow();
+      const [entryRows, dailyRows, balanceRows, statRows, subRows] = await Promise.all([
+        finance.between("entry_date", isoLocal(rangeStart()), isoLocal(today())),
+        financeDailyView.list(q => q.gte("entry_date", dailyFrom).lte("entry_date", dailyTo)).catch(() => []),
+        accountBalancesView.list().catch(() => []),
+        financeStatsView.list().catch(() => []),
+        subscriptions.list()
+      ]);
+      items = entryRows;
+      daily = dailyRows;
+      acctBalances = balanceRows;
+      stats = statRows[0] || { no_account: 0, entries: 0 };
+      subs = subRows;
+      tableMissing = false;
+    } catch (e) {
+      // Ο πίνακας μπορεί να μην έχει δημιουργηθεί ακόμα
+      if (isMissingTable(e) || /finance_entries/.test(e.message || "")) {
+        tableMissing = true;
+        items = []; daily = []; acctBalances = []; stats = { no_account: 0, entries: 0 };
+        subs = await subscriptions.list().catch(() => []);
+      } else throw e;
+    }
   }
 
   if (tableMissing) {
@@ -323,19 +362,23 @@ create policy "own finance" on public.finance_entries
   const shown = items.filter(inRange).sort((a, b) =>
     b.entry_date.localeCompare(a.entry_date) || b.created_at.localeCompare(a.created_at));
   const flow = shown.filter(isFlow);
-  const income = flow.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
-  const expense = flow.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
+  const income = sumAmounts(flow.filter(e => e.kind === "income"), e => e.amount);
+  const expense = sumAmounts(flow.filter(e => e.kind === "expense"), e => e.amount);
   const fixed = subsCost();
   const periodFlow = income - expense - fixed;
 
-  // Πραγματικό υπόλοιπο: το αρχικό κάθε λογαριασμού συν όλη η ροή, όχι μόνο η περίοδος
-  const acctBalances = balances(accts, items);
-  const available = totalBalance(accts, items);
-  const orphans = withoutAccount(items);
+  // Πραγματικό υπόλοιπο: το αθροίζει η βάση πάνω σε όλη την ιστορία, εμείς το διαβάζουμε
+  const balanceOf = new Map(acctBalances.map(r => [r.account_id, Number(r.balance)]));
+  const acctRows = accts.map(a => ({
+    account: a,
+    balance: balanceOf.has(a.id) ? balanceOf.get(a.id) : Number(a.start_balance) || 0
+  }));
+  const available = sumAmounts(acctRows, r => r.balance);
+  const orphanCount = Number(stats.no_account) || 0;
 
   const todayIso = isoLocal(today());
-  const todayIn = items.filter(e => e.entry_date === todayIso && e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
-  const todayOut = items.filter(e => e.entry_date === todayIso && e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
+  const todayIn = sumAmounts(items.filter(e => e.entry_date === todayIso && e.kind === "income"), e => e.amount);
+  const todayOut = sumAmounts(items.filter(e => e.entry_date === todayIso && e.kind === "expense"), e => e.amount);
 
   const days = Math.max(1, Math.round((today() - rangeStart()) / 86400000) + 1);
   const perDay = (expense + fixed) / days;
@@ -343,10 +386,11 @@ create policy "own finance" on public.finance_entries
   // ---- Έξοδα ανά ημέρα της περιόδου, για τη διάμεσο ----
   // Στη διάμεσο μετράνε και οι μέρες χωρίς έξοδο: αλλιώς θα έδειχνε τη συνηθισμένη
   // μέρα «όταν ξοδεύεις», που είναι άλλο πράγμα από τη συνηθισμένη σου μέρα.
-  const byDay = {};
+  const byDayCents = {};
   for (const e of flow.filter(e => e.kind === "expense")) {
-    byDay[e.entry_date] = (byDay[e.entry_date] || 0) + Number(e.amount);
+    byDayCents[e.entry_date] = (byDayCents[e.entry_date] || 0) + toCents(e.amount);
   }
+  const byDay = Object.fromEntries(Object.entries(byDayCents).map(([k, c]) => [k, fromCents(c)]));
   const dayTotals = [];
   for (const d = new Date(rangeStart()); isoLocal(d) <= todayIso; d.setDate(d.getDate() + 1)) {
     dayTotals.push(byDay[isoLocal(d)] || 0);
@@ -354,13 +398,15 @@ create policy "own finance" on public.finance_entries
   const medianDay = median(dayTotals);
 
   // ---- Κατανομή εξόδων: οι υποκατηγορίες αθροίζονται στη ρίζα τους ----
-  const byCat = {};      // ανά ρίζα, για γράφημα και σύνολα
-  const byLeaf = {};     // ανά ακριβή κατηγορία, για την ανάλυση
+  const byCatCents = {};   // ανά ρίζα, για γράφημα και σύνολα
+  const byLeafCents = {};  // ανά ακριβή κατηγορία, για την ανάλυση
   for (const e of flow.filter(e => e.kind === "expense")) {
     const root = rootCategory("expense", e.category);
-    byCat[root] = (byCat[root] || 0) + Number(e.amount);
-    byLeaf[e.category] = (byLeaf[e.category] || 0) + Number(e.amount);
+    byCatCents[root] = (byCatCents[root] || 0) + toCents(e.amount);
+    byLeafCents[e.category] = (byLeafCents[e.category] || 0) + toCents(e.amount);
   }
+  const byCat = Object.fromEntries(Object.entries(byCatCents).map(([k, c]) => [k, fromCents(c)]));
+  const byLeaf = Object.fromEntries(Object.entries(byLeafCents).map(([k, c]) => [k, fromCents(c)]));
   const donutItems = Object.entries(byCat)
     .map(([c, v]) => ({ label: cats("expense")[c] || "Άλλο", value: v, color: catColor(c) }))
     .concat(fixed > 0 ? [{ label: "Συνδρομές", value: fixed, color: CAT_COLOR.subs }] : [])
@@ -385,16 +431,14 @@ create policy "own finance" on public.finance_entries
   const byAmount = sort === "amount";
   const listRows = byAmount ? [...filtered].sort((a, b) => Number(b.amount) - Number(a.amount)) : filtered;
   const filterOn = !!(filters.cat || filters.account || filters.text.trim() || filters.min || filters.max);
-  const listNet = listRows.filter(isFlow)
-    .reduce((s, e) => s + (e.kind === "income" ? 1 : -1) * Number(e.amount), 0);
+  const listNet = fromCents(listRows.filter(isFlow)
+    .reduce((c, e) => c + (e.kind === "income" ? 1 : -1) * toCents(e.amount), 0));
 
-  // Ομαδοποίηση ανά ημέρα
-  const groups = {};
-  for (const e of filtered) (groups[e.entry_date] = groups[e.entry_date] || []).push(e);
+
 
   const accountsBlock = accts.length ? `
     <div class="accounts">
-      ${acctBalances.map(({ account: a, balance }) => {
+      ${acctRows.map(({ account: a, balance }) => {
         // Το είδος μπαίνει μόνο όταν λέει κάτι παραπάνω από το όνομα —
         // «Μετρητά / Μετρητά» είναι θόρυβος
         const kind = ACCOUNT_KINDS[a.kind] || "";
@@ -414,8 +458,8 @@ create policy "own finance" on public.finance_entries
         </button>`;
       }).join("")}
     </div>
-    ${orphans.length ? `<p class="hint orphan-hint" data-drill="noacct">
-      ${orphans.length === 1 ? "Μία κίνηση δεν έχει" : `${orphans.length} κινήσεις δεν έχουν`} λογαριασμό —
+    ${orphanCount ? `<p class="hint orphan-hint" data-drill="noacct">
+      ${orphanCount === 1 ? "Μία κίνηση δεν έχει" : `${orphanCount} κινήσεις δεν έχουν`} λογαριασμό —
       τα υπόλοιπα δεν τις μετράνε.</p>` : ""}` : "";
 
   // ---- Τα περιεχόμενα κάθε καρτέλας ----
@@ -476,8 +520,8 @@ create policy "own finance" on public.finance_entries
       </div>
     </div>
     ${calView === "month"
-      ? monthCalendar({ month: calMonth, entries: items, subs })
-      : items.some(e => e.kind === "expense")
+      ? monthCalendar({ month: calMonth, daily, subs })
+      : daily.some(d => Number(d.expense) > 0)
         ? heatmap(expenseByDay(), { format: fmt, empty: "χωρίς έξοδα" })
         : `<p class="hint">Καμία δαπάνη ακόμα.</p>`}
   </div>`;
@@ -518,19 +562,29 @@ create policy "own finance" on public.finance_entries
       καθαρό <span class="${listNet >= 0 ? "amount-in" : "amount-out"}">${listNet >= 0 ? "+" : "−"}${fmt(Math.abs(listNet))}</span></p>` : ""}
   </div>`;
 
+  const paged = listRows.slice(0, shownCount);
+  const moreCount = listRows.length - paged.length;
+  const moreBtn = moreCount
+    ? `<button class="btn btn-ghost btn-block" id="btnMore">Ακόμα ${Math.min(moreCount, PAGE)} από ${moreCount}</button>`
+    : "";
+
+  // Ομαδοποίηση ανά ημέρα — μόνο για όσες γραμμές δείχνουμε
+  const groups = {};
+  for (const e of paged) (groups[e.entry_date] = groups[e.entry_date] || []).push(e);
+
   const listBody = listRows.length
     ? (byAmount
       ? `<div class="section-title day-head"><span>Κατά ποσό</span></div>
-         <div class="list">${listRows.map(entryHtml).join("")}</div>`
+         <div class="list">${paged.map(entryHtml).join("")}</div>${moreBtn}`
       : Object.entries(groups).map(([date, list]) => {
-          const dayIn = list.filter(e => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
-          const dayOut = list.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
+          const dayIn = sumAmounts(list.filter(e => e.kind === "income"), e => e.amount);
+          const dayOut = sumAmounts(list.filter(e => e.kind === "expense"), e => e.amount);
           return `<div class="section-title day-head">
               <span>${date === todayIso ? "Σήμερα" : fmtDate(new Date(date + "T00:00:00"))}</span>
               <span class="day-sum">${dayIn ? `<span class="amount-in">+${fmt(dayIn)}</span>` : ""} ${dayOut ? `<span class="amount-out">−${fmt(dayOut)}</span>` : ""}</span>
             </div>
             <div class="list">${list.map(entryHtml).join("")}</div>`;
-        }).join(""))
+        }).join("") + moreBtn)
     : filterOn
       ? `<div class="empty">${icons.wallet}<p>Καμία κίνηση με αυτά τα φίλτρα.</p>
          <button class="btn btn-ghost" id="btnClearFiltersEmpty">${icons.x} Καθαρισμός φίλτρων</button></div>`
@@ -652,27 +706,35 @@ create policy "own finance" on public.finance_entries
     drills.available = () => ({
       title: "Διαθέσιμα",
       total: fmt(available), totalLabel: "Σε όλους τους λογαριασμούς",
-      rows: acctBalances.map(({ account: a, balance }) => ({
+      rows: acctRows.map(({ account: a, balance }) => ({
         label: a.name, color: a.color,
         meta: `${ACCOUNT_KINDS[a.kind] || "Λογαριασμός"} · αρχικό ${fmt(a.start_balance)}`,
         value: fmt(balance), cls: balance < 0 ? "amount-out" : ""
       })),
-      note: orphans.length ? `${orphans.length} κινήσεις δεν έχουν λογαριασμό και δεν μετράνε εδώ.` : ""
+      note: orphanCount ? `${orphanCount} κινήσεις δεν έχουν λογαριασμό και δεν μετράνε εδώ.` : ""
     });
-    drills.noacct = () => ({
+    // Οι κινήσεις χωρίς λογαριασμό μπορεί να είναι οπουδήποτε στο ιστορικό:
+    // τις ζητάμε μόνο όταν ανοίξει η ανάλυση, όχι σε κάθε φόρτωση της σελίδας.
+    drills.noacct = async () => ({
       title: "Κινήσεις χωρίς λογαριασμό",
-      rows: orphans.slice(0, 30).map(entryRow),
+      rows: (await finance.query(q => q
+        .is("account_id", null).neq("kind", "transfer")
+        .order("entry_date", { ascending: false }).limit(30)
+      ).catch(() => [])).map(entryRow),
       note: "Άνοιξε την καθεμιά και διάλεξε λογαριασμό για να συμφωνήσουν τα υπόλοιπα."
     });
-    for (const { account: a, balance } of acctBalances) {
-      drills["acct:" + a.id] = () => ({
-        title: a.name,
-        total: fmt(balance), totalLabel: "Τρέχον υπόλοιπο",
-        rows: [
-          { label: "Αρχικό υπόλοιπο", value: fmt(a.start_balance) },
-          ...items.filter(e => e.account_id === a.id || e.to_account_id === a.id)
-            .slice(0, 20)
-            .map(e => ({
+    for (const { account: a, balance } of acctRows) {
+      drills["acct:" + a.id] = async () => {
+        const recent = await finance.query(q => q
+          .or(`account_id.eq.${a.id},to_account_id.eq.${a.id}`)
+          .order("entry_date", { ascending: false }).limit(20)
+        ).catch(() => []);
+        return {
+          title: a.name,
+          total: fmt(balance), totalLabel: "Τρέχον υπόλοιπο",
+          rows: [
+            { label: "Αρχικό υπόλοιπο", value: fmt(a.start_balance) },
+            ...recent.map(e => ({
               ...entryRow(e),
               // Σε μεταφορά, το πρόσημο εξαρτάται από ποια άκρη είναι αυτός ο λογαριασμός
               value: e.kind === "transfer"
@@ -682,18 +744,21 @@ create policy "own finance" on public.finance_entries
                 ? (e.to_account_id === a.id ? "amount-in" : "amount-out")
                 : entryRow(e).cls
             }))
-        ]
-      });
+          ]
+        };
+      };
     }
   }
 
   // Οι μέρες του ημερολογίου φτιάχνουν τα κλειδιά τους δυναμικά
   view.querySelectorAll("[data-drill^='day:']").forEach(el => {
     const iso = el.dataset.drill.slice(4);
-    drills[el.dataset.drill] = () => {
-      const list = items.filter(e => e.entry_date === iso);
+    drills[el.dataset.drill] = async () => {
+      const local = items.filter(e => e.entry_date === iso);
+      const list = local.length ? local
+        : await finance.between("entry_date", iso, iso).catch(() => []);
       const planned = subs.filter(s => isoLocal(nextDue(s)) === iso);
-      const out = list.filter(e => e.kind === "expense").reduce((s, e) => s + Number(e.amount), 0);
+      const out = sumAmounts(list.filter(e => e.kind === "expense"), e => e.amount);
       return {
         title: fmtDate(new Date(iso + "T00:00:00")),
         total: fmt(out), totalLabel: "Έξοδα ημέρας",
@@ -715,7 +780,7 @@ create policy "own finance" on public.finance_entries
   view.querySelector("#btnExpenseEmpty")?.addEventListener("click", () => openForm(null, "expense", rerender));
   view.querySelector("#btnTransfer")?.addEventListener("click", () => openForm(null, "transfer", rerender));
   view.querySelectorAll("[data-range]").forEach(b =>
-    b.addEventListener("click", () => { range = b.dataset.range; rerender(true); }));
+    b.addEventListener("click", () => { range = b.dataset.range; shownCount = PAGE; rerender(); }));
 
   // Αλλαγή καρτέλας: τα δεδομένα είναι ήδη εδώ, οπότε μόνο επανασχεδίαση.
   // Το replaceState γράφει την καρτέλα στη διαδρομή χωρίς να πυροδοτήσει hashchange.
@@ -743,6 +808,7 @@ create policy "own finance" on public.finance_entries
       clearTimeout(timer);
       timer = setTimeout(() => {
         filters.text = searchInput.value;
+        shownCount = PAGE;
         const at = searchInput.selectionStart;
         rerender(true).then(() => {
           // Μετά την επανασχεδίαση το πεδίο είναι καινούργιο — του δίνουμε πίσω
@@ -755,6 +821,7 @@ create policy "own finance" on public.finance_entries
   }
   const bindFilter = (sel, apply) => view.querySelector(sel)?.addEventListener("change", e => {
     apply(e.target.value);
+    shownCount = PAGE;
     rerender(true);
   });
   bindFilter("#fCatFilter", v => { filters.cat = v; });
@@ -763,18 +830,27 @@ create policy "own finance" on public.finance_entries
   bindFilter("#fMin", v => { filters.min = v; });
   bindFilter("#fMax", v => { filters.max = v; });
 
+  view.querySelector("#btnMore")?.addEventListener("click", () => {
+    shownCount += PAGE;
+    rerender(true);
+  });
+
   view.querySelector("#btnToggleFilters")?.addEventListener("click", () => {
     filtersOpen = !filtersOpen;
     rerender(true);
   });
 
-  const clearFilters = () => { filters = { text: "", cat: "", account: "", min: "", max: "" }; rerender(true); };
+  const clearFilters = () => {
+    filters = { text: "", cat: "", account: "", min: "", max: "" };
+    shownCount = PAGE;
+    rerender(true);
+  };
   view.querySelector("#btnClearFilters")?.addEventListener("click", clearFilters);
   view.querySelector("#btnClearFiltersEmpty")?.addEventListener("click", clearFilters);
   view.querySelectorAll("[data-cal]").forEach(b =>
     b.addEventListener("click", () => {
       calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(b.dataset.cal), 1);
-      rerender(true);   // τα δεδομένα είναι ήδη εδώ, αλλάζει μόνο ο μήνας
+      rerender();   // ο νέος μήνας μπορεί να είναι εκτός του παραθύρου που έχουμε
     }));
 
   async function removeEntry(e) {
@@ -785,6 +861,7 @@ create policy "own finance" on public.finance_entries
     await rerender(true);
     try {
       await finance.remove(e.id);
+      await rerender();   // τα υπόλοιπα έρχονται από τη βάση — χρειάζονται φρέσκο διάβασμα
       toastAction("Η εγγραφή διαγράφηκε", "Αναίρεση", async () => {
         await finance.insert({
           id: e.id, kind: e.kind, amount: e.amount, category: e.category,

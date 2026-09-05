@@ -1,4 +1,5 @@
 // Βοηθητικά UI: μορφοποίηση, modal, toast, εικονίδια SVG
+import { splitAmount, sumAmounts } from "./money.js";
 
 export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -47,14 +48,27 @@ export function members(sub) {
 }
 export function shareCount(sub) { return 1 + members(sub).length; }   // εγώ + οι υπόλοιποι
 export function isShared(sub) { return shareCount(sub) > 1; }
-// Στρογγυλοποίηση στο λεπτό ώστε τα εμφανιζόμενα ποσά να αθροίζονται σωστά
-export function myShare(sub) {
-  return Math.round((Number(sub.price) / shareCount(sub)) * 100) / 100;
+
+// Όλα τα μερίδια, με το δικό μου πρώτο. Η διαίρεση σπάνια βγαίνει στρογγυλή:
+// τα περισσεύοντα λεπτά τα παίρνω εγώ, ώστε τα μερίδια να αθροίζουν ακριβώς στην τιμή.
+export function shareOf(sub) {
+  return splitAmount(sub.price, shareCount(sub));
 }
+export function myShare(sub) { return shareOf(sub)[0]; }
+export function memberShare(sub, index) { return shareOf(sub)[index + 1] ?? 0; }
+
 // Όσοι δεν έχουν πληρώσει για την τρέχουσα χρέωση
 export function unpaidMembers(sub) {
   const cycleIso = isoLocal(nextDue(sub));
   return members(sub).filter(m => m.paid_for !== cycleIso);
+}
+// Το ίδιο, με το ποσό που χρωστάει ο καθένας — όχι το δικό μου μερίδιο
+export function unpaidShares(sub) {
+  const cycleIso = isoLocal(nextDue(sub));
+  const shares = shareOf(sub);
+  return members(sub)
+    .map((m, i) => ({ ...m, amount: shares[i + 1] ?? 0 }))
+    .filter(m => m.paid_for !== cycleIso);
 }
 
 // Επόμενη χρέωση συνδρομής: κύλιση μπροστά αν πέρασε
@@ -539,9 +553,11 @@ export function bindDrills(view, map) {
     el.classList.add("drillable");
     el.setAttribute("role", "button");
     el.setAttribute("tabindex", "0");
-    const open = () => {
+    // Η πηγή μπορεί να είναι και ασύγχρονη: κάποιες αναλύσεις φέρνουν
+    // τις γραμμές τους από τη βάση μόνο όταν τις ζητήσεις.
+    const open = async () => {
       haptic("tap");
-      openDrill(typeof source === "function" ? source() : source, el);
+      openDrill(await (typeof source === "function" ? source() : source), el);
     };
     el.addEventListener("click", open);
     el.addEventListener("keydown", e => {

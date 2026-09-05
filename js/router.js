@@ -1,6 +1,7 @@
 // Απλός hash router: #/dashboard, #/subs, ...
 import { skeletonFor } from "./skeleton.js";
 import { getTabs } from "./prefs.js";
+import { logError } from "./errors.js";
 
 const routes = {};
 let defaultRoute = "dashboard";
@@ -49,6 +50,7 @@ export async function render() {
     // μέχρι τότε μένει ορατός ο σκελετός.
     await routes[name](view);
   } catch (e) {
+    logError("route:" + name, e);
     view.innerHTML = `<div class="empty"><p>Σφάλμα φόρτωσης: ${e.message || e}</p>
       <button class="btn btn-primary" onclick="location.reload()">Δοκίμασε ξανά</button></div>`;
   }

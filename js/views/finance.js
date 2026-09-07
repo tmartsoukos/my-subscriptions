@@ -466,7 +466,7 @@ create policy "own finance" on public.finance_entries
 
   const statsBlock = `<div class="stats">
     ${accts.length ? `<div class="stat" data-drill="available"><div class="label">Διαθέσιμα</div>
-      <div class="value money ${available < 0 ? "amount-out" : ""}">${fmt(available)}</div></div>` : ""}
+      <div class="value money secret ${available < 0 ? "amount-out" : ""}">${fmt(available)}</div></div>` : ""}
     <div class="stat" data-drill="today"><div class="label">Σήμερα</div>
       <div class="value money today-value">
         <span class="${todayIn ? "amount-in" : ""}">+${fmt(todayIn)}</span>

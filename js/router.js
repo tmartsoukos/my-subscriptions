@@ -2,11 +2,14 @@
 import { skeletonFor } from "./skeleton.js";
 import { getTabs } from "./prefs.js";
 import { logError } from "./errors.js";
+import { refreshSession } from "./db.js";
 
 const routes = {};
 let defaultRoute = "dashboard";
 const ORDER = ["dashboard", "finance", "subs", "todos", "calendar", "notes", "studies", "health", "watchlist", "more", "settings"];
 let lastRoute = null;
+// Σφάλματα token που περνούν από μόνα τους: αξίζει μία σιωπηλή επανάληψη
+const TRANSIENT_AUTH = /issued at future|token is expired|JWT expired|PGRST301/i;
 
 export function register(name, renderFn) {
   routes[name] = renderFn;
@@ -50,9 +53,27 @@ export async function render() {
     // μέχρι τότε μένει ορατός ο σκελετός.
     await routes[name](view);
   } catch (e) {
-    logError("route:" + name, e);
-    view.innerHTML = `<div class="empty"><p>Σφάλμα φόρτωσης: ${e.message || e}</p>
-      <button class="btn btn-primary" onclick="location.reload()">Δοκίμασε ξανά</button></div>`;
+    let failed = e;
+    // Παροδικό σφάλμα διαπιστευτηρίων: το φρέσκο token έχει iat λίγα
+    // δευτερόλεπτα μπροστά από το ρολόι του server που το ελέγχει, οπότε η
+    // πρώτη κλήση απορρίπτεται και η ίδια περνά αμέσως μετά. Μία επανάληψη με
+    // ανανεωμένο token το καλύπτει χωρίς να δει ο χρήστης κενή οθόνη.
+    if (TRANSIENT_AUTH.test(failed?.message || String(failed))) {
+      try {
+        await new Promise(r => setTimeout(r, 1200));
+        await refreshSession();
+        await routes[name](view);
+        logError("route:" + name + ":ανακτήθηκε", e);
+        failed = null;
+      } catch (again) {
+        failed = again;
+      }
+    }
+    if (failed) {
+      logError("route:" + name, failed);
+      view.innerHTML = `<div class="empty"><p>Σφάλμα φόρτωσης: ${failed.message || failed}</p>
+        <button class="btn btn-primary" onclick="location.reload()">Δοκίμασε ξανά</button></div>`;
+    }
   }
 
   view.classList.remove("enter-fwd", "enter-back");

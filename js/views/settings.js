@@ -28,12 +28,34 @@ const GOAL_METRICS = {
 
 const DOW = ["Κυριακή", "Δευτέρα", "Τρίτη", "Τετάρτη", "Πέμπτη", "Παρασκευή", "Σάββατο"];
 
+// Οι Ρυθμίσεις είναι δεκαπέντε ενότητες. Ομαδοποιημένες σε πέντε πτυσσόμενες
+// ομάδες χωρούν σε μία οθόνη κινητού· ό,τι άνοιξες μένει ανοιχτό στην επόμενη
+// επίσκεψη, ώστε να μη σε βάζει να ξανασκάβεις για το ίδιο πράγμα.
+const GROUPS_KEY = "pref:settingsGroups";
+
+function restoreGroups(view) {
+  let open = [];
+  try { open = JSON.parse(localStorage.getItem(GROUPS_KEY)) || []; } catch { /* χαλασμένη τιμή */ }
+  const groups = [...view.querySelectorAll(".settings-group")];
+  groups.forEach(g => { g.open = open.includes(g.dataset.group); });
+  groups.forEach(g => g.addEventListener("toggle", () => {
+    const now = groups.filter(x => x.open).map(x => x.dataset.group);
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(now)); } catch { /* γεμάτος χώρος */ }
+  }));
+}
+
 export async function render(view) {
   const { data: { user } } = await sb.auth.getUser();
 
   view.innerHTML = `
     <div class="page-head"><h1>Ρυθμίσεις</h1></div>
 
+    <details class="settings-group" data-group="notifications">
+      <summary>
+        <span class="sg-ico">${icons.bell}</span>
+        <span class="sg-text"><strong>Ειδοποιήσεις</strong><small>πότε και τι θα σε ειδοποιεί</small></span>
+      </summary>
+      <div class="sg-body">
     <div class="settings-block">
       <h3>${icons.bell} Ειδοποιήσεις</h3>
       <p>Υπενθύμιση στο κινητό για χρεώσεις, προθεσμίες και ραντεβού — χωρίς να ανοίξεις την εφαρμογή.
@@ -64,7 +86,158 @@ export async function render(view) {
         <button class="btn btn-ghost" id="btnPushTest">${icons.bell} Δοκιμαστική ειδοποίηση</button>
       </div>
     </div>
+      </div>
+    </details>
+    <details class="settings-group" data-group="look">
+      <summary>
+        <span class="sg-ico">${icons.image}</span>
+        <span class="sg-text"><strong>Εμφάνιση και διάταξη</strong><small>θέμα, πυκνότητα, μπάρα, αρχική</small></span>
+      </summary>
+      <div class="sg-body">
+    <div class="settings-block">
+      <h3>${icons.image} Εμφάνιση</h3>
+      <p>Χρώμα τόνου:</p>
+      <div class="accents" id="accentRow">
+        ${Object.entries(ACCENTS).map(([k, a]) =>
+          `<button class="accent-dot ${getAccent() === k ? "active" : ""}" data-accent="${k}"
+            style="background:linear-gradient(135deg, ${a.c1}, ${a.c2})" title="${a.label}" aria-label="${a.label}"></button>`).join("")}
+      </div>
+      <label class="check-row" style="margin-top:10px">
+        <input type="checkbox" id="fPrivate" ${isPrivate() ? "checked" : ""}>
+        <span>Κρύψιμο υπολοίπων — θολώνουν το υπόλοιπο του μήνα, τα διαθέσιμα και τα υπόλοιπα των λογαριασμών. Γυρίζει και με το μάτι πάνω δεξιά, και ισχύει μόνο σε αυτή τη συσκευή</span>
+      </label>
+      <label class="check-row" style="margin-top:10px">
+        <input type="checkbox" id="fMood" ${moodEnabled() ? "checked" : ""}>
+        <span>Ζωντανό φως — το φόντο δροσίζει όταν είσαι εντός στόχων και ζεσταίνει όταν πλησιάζεις τα όρια</span>
+      </label>
 
+      <p>Θέμα και πυκνότητα λίστας. Το «σύστημα» ακολουθεί τη ρύθμιση της συσκευής.</p>
+      <div class="seg" id="themeSeg" role="group" aria-label="Θέμα">
+        ${[["system", "Σύστημα"], ["light", "Φωτεινό"], ["dark", "Σκούρο"]].map(([v, l]) =>
+          `<button class="seg-btn" data-theme="${v}">${l}</button>`).join("")}
+      </div>
+      <div class="seg" id="densitySeg" role="group" aria-label="Πυκνότητα" style="margin-top:10px">
+        ${[["comfortable", "Άνετη"], ["compact", "Συμπαγής"]].map(([v, l]) =>
+          `<button class="seg-btn" data-density="${v}">${l}</button>`).join("")}
+      </div>
+
+      <div class="field" style="margin-top:14px">
+        <label for="fDayStart">Η μέρα αρχίζει στις</label>
+        <select id="fDayStart">
+          ${[0, 3, 4, 5, 6].map(h =>
+            `<option value="${h}" ${getDayStart() === h ? "selected" : ""}>${
+              h === 0 ? "00:00 — τα μεσάνυχτα" : String(h).padStart(2, "0") + ":00"}</option>`).join("")}
+        </select>
+      </div>
+      <p class="hint">Αν ξενυχτάς: με όριο 04:00, ένα έξοδο που καταχωρείς στη 1:30 π.μ. μετράει στη χθεσινή μέρα.</p>
+    </div>
+    <div class="settings-block">
+      <h3>${icons.dots} Κάτω μπάρα</h3>
+      <p>Διάλεξε έως πέντε ενότητες για το κινητό. Οι υπόλοιπες πάνε στο «Περισσότερα».</p>
+      <div class="pick-grid" id="tabsPicker">
+        ${Object.entries(SECTIONS).map(([id, sec]) =>
+          `<button class="pick ${getTabs().includes(id) ? "on" : ""}" data-tab="${id}">
+            <span class="pick-ico">${icons[sec.icon]}</span>${sec.label}
+          </button>`).join("")}
+      </div>
+      <p class="hint" id="tabsHint"></p>
+    </div>
+    <div class="settings-block">
+      <h3>${icons.home} Διάταξη αρχικής</h3>
+      <p>Ποιες κάρτες βλέπεις και με ποια σειρά.</p>
+      <div class="mini-list" id="layoutList"></div>
+    </div>
+      </div>
+    </details>
+    <details class="settings-group" data-group="money">
+      <summary>
+        <span class="sg-ico">${icons.wallet}</span>
+        <span class="sg-text"><strong>Οικονομικά</strong><small>λογαριασμοί, γρήγορες ενέργειες, στόχοι, κατηγορίες</small></span>
+      </summary>
+      <div class="sg-body">
+    <div class="settings-block">
+      <h3>${icons.card2} Λογαριασμοί</h3>
+      <p>Πού βρίσκονται τα λεφτά σου: μετρητά, κάρτα, τράπεζα. Το αρχικό υπόλοιπο είναι
+      όσα έχεις εκεί σήμερα — από κει και πέρα το ενημερώνουν οι κινήσεις σου.</p>
+      <div class="mini-list" id="acctList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddAcct">${icons.plus} Νέος λογαριασμός</button>
+    </div>
+    <div class="settings-block">
+      <h3>${icons.wallet} Γρήγορες ενέργειες</h3>
+      <p>Κουμπιά ενός πατήματος στα Οικονομικά — π.χ. «καφές 3€».</p>
+      <div class="mini-list" id="quickList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddQuick">${icons.plus} Νέα ενέργεια</button>
+    </div>
+    <div class="settings-block">
+      <h3>${icons.chart} Στόχοι</h3>
+      <p>Εμφανίζονται με μπάρα προόδου στην αρχική.</p>
+      <div class="mini-list" id="goalList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddGoal">${icons.plus} Νέος στόχος</button>
+    </div>
+    <div class="settings-block">
+      <h3>${icons.bookmark} Δικές μου κατηγορίες</h3>
+      <p>Προστίθενται στις προεπιλεγμένες, σε έξοδα και συνδρομές. Μια κατηγορία μπορεί να
+      κρέμεται από μια άλλη — π.χ. «Καφές» κάτω από το «Φαγητό». Τα σύνολα αθροίζονται στη γονική.</p>
+      <div class="mini-list" id="catList"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddCat">${icons.plus} Νέα κατηγορία</button>
+    </div>
+      </div>
+    </details>
+    <details class="settings-group" data-group="iphone">
+      <summary>
+        <span class="sg-ico">${icons.apple}</span>
+        <span class="sg-text"><strong>Σύνδεση με το iPhone</strong><small>ημερολόγιο, widget, Siri</small></span>
+      </summary>
+      <div class="sg-body">
+    <div class="settings-block">
+      <h3>${icons.apple} Apple Calendar</h3>
+      <p>Πρόσθεσε τη ροή στο iPhone: Ρυθμίσεις → Εφαρμογές → Ημερολόγιο → Λογαριασμοί → Προσθήκη λογαριασμού →
+      Άλλο → Προσθήκη συνδρομητικού ημερολογίου, και επικόλλησε το παρακάτω URL.
+      Οι πληρωμές και οι υποχρεώσεις σου θα εμφανίζονται αυτόματα στο Ημερολόγιο και θα ανανεώνονται μόνες τους.</p>
+      <div class="url-box">
+        <input type="text" id="icsUrl" readonly value="Φόρτωση..." aria-label="URL ροής ημερολογίου">
+        <button class="btn btn-ghost" id="btnCopy">${icons.copy} Αντιγραφή</button>
+      </div>
+      <p style="margin-top:12px;margin-bottom:8px">Αν το URL διαρρεύσει, δημιούργησε νέο (το παλιό σταματά να ισχύει):</p>
+      <button class="btn btn-ghost" id="btnRegen">${icons.refresh} Νέο URL</button>
+    </div>
+    <div class="settings-block">
+      <h3>${icons.dots} Widget iPhone (Scriptable)</h3>
+      <p>Κατέβασε το <strong>Scriptable</strong> από το App Store, φτιάξε νέο script με το περιεχόμενο του
+      <code>scriptable/dashboard-widget.js</code> από το repo, και βάλε το token παρακάτω στη γραμμή TOKEN.
+      Μετά πρόσθεσε widget Scriptable στην αρχική ή στην οθόνη κλειδώματος.</p>
+      <div class="url-box">
+        <input type="text" id="widgetToken" readonly value="Φόρτωση..." aria-label="Token για το widget">
+        <button class="btn btn-ghost" id="btnCopyToken">${icons.copy} Αντιγραφή</button>
+      </div>
+    </div>
+    <div class="settings-block">
+      <h3>${icons.mic} Siri και Συντομεύσεις</h3>
+      <p>Φτιάξε Συντόμευση: <em>Λήψη περιεχομένων URL</em> με ένα από τα παρακάτω, μετά
+      <em>Λήψη τιμής λεξικού «text»</em> και <em>Εκφώνηση κειμένου</em>. Δώσε της όνομα και φώναξέ τη με τη Siri.</p>
+      <div class="url-box" style="margin-bottom:8px">
+        <input type="text" id="siriSummary" readonly value="Φόρτωση..." aria-label="URL σύνοψης">
+        <button class="btn btn-ghost" data-copy="siriSummary">${icons.copy}</button>
+      </div>
+      <div class="url-box" style="margin-bottom:8px">
+        <input type="text" id="siriToday" readonly value="Φόρτωση..." aria-label="URL για σήμερα">
+        <button class="btn btn-ghost" data-copy="siriToday">${icons.copy}</button>
+      </div>
+      <div class="url-box">
+        <input type="text" id="siriAdd" readonly value="Φόρτωση..." aria-label="URL προσθήκης εργασίας">
+        <button class="btn btn-ghost" data-copy="siriAdd">${icons.copy}</button>
+      </div>
+      <p class="hint">Στο τρίτο, αντικατάστησε το <code>ΚΕΙΜΕΝΟ</code> με μεταβλητή «Υπαγορευμένο κείμενο» ώστε να λες
+      «Σιρι, νέα εργασία» και να την υπαγορεύεις.</p>
+    </div>
+      </div>
+    </details>
+    <details class="settings-group" data-group="account">
+      <summary>
+        <span class="sg-ico">${icons.user}</span>
+        <span class="sg-text"><strong>Λογαριασμός και δεδομένα</strong><small>προφίλ, εισαγωγή, σφάλματα</small></span>
+      </summary>
+      <div class="sg-body">
     <div class="settings-block">
       <h3>${icons.user} Προφίλ</h3>
       <div class="profile-row">
@@ -92,93 +265,11 @@ export async function render(view) {
         </select>
       </div>
     </div>
-
     <div class="settings-block">
-      <h3>${icons.image} Εμφάνιση</h3>
-      <p>Χρώμα τόνου:</p>
-      <div class="accents" id="accentRow">
-        ${Object.entries(ACCENTS).map(([k, a]) =>
-          `<button class="accent-dot ${getAccent() === k ? "active" : ""}" data-accent="${k}"
-            style="background:linear-gradient(135deg, ${a.c1}, ${a.c2})" title="${a.label}" aria-label="${a.label}"></button>`).join("")}
-      </div>
-      <label class="check-row" style="margin-top:10px">
-        <input type="checkbox" id="fPrivate" ${isPrivate() ? "checked" : ""}>
-        <span>Κρύψιμο ποσών — όλα τα νούμερα θολώνουν. Γυρίζει και με το μάτι πάνω δεξιά, και ισχύει μόνο σε αυτή τη συσκευή</span>
-      </label>
-      <label class="check-row" style="margin-top:10px">
-        <input type="checkbox" id="fMood" ${moodEnabled() ? "checked" : ""}>
-        <span>Ζωντανό φως — το φόντο δροσίζει όταν είσαι εντός στόχων και ζεσταίνει όταν πλησιάζεις τα όρια</span>
-      </label>
-
-      <p>Θέμα και πυκνότητα λίστας. Το «σύστημα» ακολουθεί τη ρύθμιση της συσκευής.</p>
-      <div class="seg" id="themeSeg" role="group" aria-label="Θέμα">
-        ${[["system", "Σύστημα"], ["light", "Φωτεινό"], ["dark", "Σκούρο"]].map(([v, l]) =>
-          `<button class="seg-btn" data-theme="${v}">${l}</button>`).join("")}
-      </div>
-      <div class="seg" id="densitySeg" role="group" aria-label="Πυκνότητα" style="margin-top:10px">
-        ${[["comfortable", "Άνετη"], ["compact", "Συμπαγής"]].map(([v, l]) =>
-          `<button class="seg-btn" data-density="${v}">${l}</button>`).join("")}
-      </div>
-
-      <div class="field" style="margin-top:14px">
-        <label for="fDayStart">Η μέρα αρχίζει στις</label>
-        <select id="fDayStart">
-          ${[0, 3, 4, 5, 6].map(h =>
-            `<option value="${h}" ${getDayStart() === h ? "selected" : ""}>${
-              h === 0 ? "00:00 — τα μεσάνυχτα" : String(h).padStart(2, "0") + ":00"}</option>`).join("")}
-        </select>
-      </div>
-      <p class="hint">Αν ξενυχτάς: με όριο 04:00, ένα έξοδο που καταχωρείς στη 1:30 π.μ. μετράει στη χθεσινή μέρα.</p>
+      <h3>${icons.card} Εισαγωγή παλιών δεδομένων</h3>
+      <p>Αν υπάρχουν συνδρομές αποθηκευμένες τοπικά σε αυτόν τον browser (από την παλιά έκδοση), μπορείς να τις εισάγεις στον λογαριασμό σου.</p>
+      <button class="btn btn-ghost" id="btnMigrate">Εισαγωγή από τοπική αποθήκευση</button>
     </div>
-
-    <div class="settings-block">
-      <h3>${icons.dots} Κάτω μπάρα</h3>
-      <p>Διάλεξε έως πέντε ενότητες για το κινητό. Οι υπόλοιπες πάνε στο «Περισσότερα».</p>
-      <div class="pick-grid" id="tabsPicker">
-        ${Object.entries(SECTIONS).map(([id, sec]) =>
-          `<button class="pick ${getTabs().includes(id) ? "on" : ""}" data-tab="${id}">
-            <span class="pick-ico">${icons[sec.icon]}</span>${sec.label}
-          </button>`).join("")}
-      </div>
-      <p class="hint" id="tabsHint"></p>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.home} Διάταξη αρχικής</h3>
-      <p>Ποιες κάρτες βλέπεις και με ποια σειρά.</p>
-      <div class="mini-list" id="layoutList"></div>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.card2} Λογαριασμοί</h3>
-      <p>Πού βρίσκονται τα λεφτά σου: μετρητά, κάρτα, τράπεζα. Το αρχικό υπόλοιπο είναι
-      όσα έχεις εκεί σήμερα — από κει και πέρα το ενημερώνουν οι κινήσεις σου.</p>
-      <div class="mini-list" id="acctList"></div>
-      <button class="btn btn-ghost btn-sm" id="btnAddAcct">${icons.plus} Νέος λογαριασμός</button>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.wallet} Γρήγορες ενέργειες</h3>
-      <p>Κουμπιά ενός πατήματος στα Οικονομικά — π.χ. «καφές 3€».</p>
-      <div class="mini-list" id="quickList"></div>
-      <button class="btn btn-ghost btn-sm" id="btnAddQuick">${icons.plus} Νέα ενέργεια</button>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.chart} Στόχοι</h3>
-      <p>Εμφανίζονται με μπάρα προόδου στην αρχική.</p>
-      <div class="mini-list" id="goalList"></div>
-      <button class="btn btn-ghost btn-sm" id="btnAddGoal">${icons.plus} Νέος στόχος</button>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.bookmark} Δικές μου κατηγορίες</h3>
-      <p>Προστίθενται στις προεπιλεγμένες, σε έξοδα και συνδρομές. Μια κατηγορία μπορεί να
-      κρέμεται από μια άλλη — π.χ. «Καφές» κάτω από το «Φαγητό». Τα σύνολα αθροίζονται στη γονική.</p>
-      <div class="mini-list" id="catList"></div>
-      <button class="btn btn-ghost btn-sm" id="btnAddCat">${icons.plus} Νέα κατηγορία</button>
-    </div>
-
     <div class="settings-block">
       <h3>${icons.bell} Καταγραφή σφαλμάτων</h3>
       <p>Ό,τι σκάει στην εφαρμογή γράφεται εδώ, με τη διαδρομή και τη συσκευή.
@@ -186,62 +277,15 @@ export async function render(view) {
       <div class="mini-list" id="errList"><p class="hint">Φόρτωση...</p></div>
       <button class="btn btn-ghost btn-sm" id="btnClearErrors">${icons.trash} Καθαρισμός</button>
     </div>
-
-    <div class="settings-block">
-      <h3>${icons.apple} Apple Calendar</h3>
-      <p>Πρόσθεσε τη ροή στο iPhone: Ρυθμίσεις → Εφαρμογές → Ημερολόγιο → Λογαριασμοί → Προσθήκη λογαριασμού →
-      Άλλο → Προσθήκη συνδρομητικού ημερολογίου, και επικόλλησε το παρακάτω URL.
-      Οι πληρωμές και οι υποχρεώσεις σου θα εμφανίζονται αυτόματα στο Ημερολόγιο και θα ανανεώνονται μόνες τους.</p>
-      <div class="url-box">
-        <input type="text" id="icsUrl" readonly value="Φόρτωση..." aria-label="URL ροής ημερολογίου">
-        <button class="btn btn-ghost" id="btnCopy">${icons.copy} Αντιγραφή</button>
-      </div>
-      <p style="margin-top:12px;margin-bottom:8px">Αν το URL διαρρεύσει, δημιούργησε νέο (το παλιό σταματά να ισχύει):</p>
-      <button class="btn btn-ghost" id="btnRegen">${icons.refresh} Νέο URL</button>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.dots} Widget iPhone (Scriptable)</h3>
-      <p>Κατέβασε το <strong>Scriptable</strong> από το App Store, φτιάξε νέο script με το περιεχόμενο του
-      <code>scriptable/dashboard-widget.js</code> από το repo, και βάλε το token παρακάτω στη γραμμή TOKEN.
-      Μετά πρόσθεσε widget Scriptable στην αρχική ή στην οθόνη κλειδώματος.</p>
-      <div class="url-box">
-        <input type="text" id="widgetToken" readonly value="Φόρτωση..." aria-label="Token για το widget">
-        <button class="btn btn-ghost" id="btnCopyToken">${icons.copy} Αντιγραφή</button>
-      </div>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.mic} Siri και Συντομεύσεις</h3>
-      <p>Φτιάξε Συντόμευση: <em>Λήψη περιεχομένων URL</em> με ένα από τα παρακάτω, μετά
-      <em>Λήψη τιμής λεξικού «text»</em> και <em>Εκφώνηση κειμένου</em>. Δώσε της όνομα και φώναξέ τη με τη Siri.</p>
-      <div class="url-box" style="margin-bottom:8px">
-        <input type="text" id="siriSummary" readonly value="Φόρτωση..." aria-label="URL σύνοψης">
-        <button class="btn btn-ghost" data-copy="siriSummary">${icons.copy}</button>
-      </div>
-      <div class="url-box" style="margin-bottom:8px">
-        <input type="text" id="siriToday" readonly value="Φόρτωση..." aria-label="URL για σήμερα">
-        <button class="btn btn-ghost" data-copy="siriToday">${icons.copy}</button>
-      </div>
-      <div class="url-box">
-        <input type="text" id="siriAdd" readonly value="Φόρτωση..." aria-label="URL προσθήκης εργασίας">
-        <button class="btn btn-ghost" data-copy="siriAdd">${icons.copy}</button>
-      </div>
-      <p class="hint">Στο τρίτο, αντικατάστησε το <code>ΚΕΙΜΕΝΟ</code> με μεταβλητή «Υπαγορευμένο κείμενο» ώστε να λες
-      «Σιρι, νέα εργασία» και να την υπαγορεύεις.</p>
-    </div>
-
-    <div class="settings-block">
-      <h3>${icons.card} Εισαγωγή παλιών δεδομένων</h3>
-      <p>Αν υπάρχουν συνδρομές αποθηκευμένες τοπικά σε αυτόν τον browser (από την παλιά έκδοση), μπορείς να τις εισάγεις στον λογαριασμό σου.</p>
-      <button class="btn btn-ghost" id="btnMigrate">Εισαγωγή από τοπική αποθήκευση</button>
-    </div>
-
     <div class="settings-block">
       <h3>${icons.settings} Λογαριασμός</h3>
       <p>Συνδεδεμένος ως: <strong>${user?.email || "—"}</strong></p>
     </div>
+      </div>
+    </details>
   `;
+
+  restoreGroups(view);
 
   const urlInput = view.querySelector("#icsUrl");
   const tokenInput = view.querySelector("#widgetToken");

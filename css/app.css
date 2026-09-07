@@ -1059,6 +1059,33 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 }
 
 /* ============ Ρυθμίσεις ============ */
+/* ---- Ομάδες ρυθμίσεων ----
+   Δεκαπέντε ενότητες σε μία στήλη ήταν ατέλειωτο σκρολ στο κινητό. Πέντε
+   πτυσσόμενες ομάδες χωρούν σε μία οθόνη και δείχνουν τη δομή με μια ματιά. */
+.settings-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: var(--space-3); overflow: hidden; }
+.settings-group > summary { display: flex; align-items: center; gap: 12px; padding: var(--space-4) var(--space-5); cursor: pointer; list-style: none; user-select: none; }
+.settings-group > summary::-webkit-details-marker { display: none; }
+.settings-group > summary:active { background: var(--surface-2, rgba(255,255,255,0.04)); }
+.sg-ico { display: flex; flex: 0 0 auto; }
+.sg-ico svg { width: 20px; height: 20px; color: var(--accent); }
+.sg-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.sg-text strong { font-size: 15.5px; font-weight: 600; }
+.sg-text small { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+/* Το βελάκι γράφεται με ψευδοστοιχείο: ένα εικονίδιο λιγότερο να συντηρείται */
+.settings-group > summary::after {
+  content: ""; flex: 0 0 auto; width: 8px; height: 8px; margin-left: 4px;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  border-radius: 1px; transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--dur) var(--ease-out);
+}
+.settings-group[open] > summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+.settings-group[open] > summary { border-bottom: 1px solid var(--border); }
+/* Μέσα στην ομάδα οι ενότητες είναι γραμμές, όχι ξεχωριστές κάρτες */
+.sg-body { padding: var(--space-4) var(--space-5) var(--space-2); }
+.sg-body .settings-block { background: none; border: none; border-radius: 0; padding: 0 0 var(--space-4); margin-bottom: var(--space-4); border-bottom: 1px solid var(--border); }
+.sg-body .settings-block:last-child { border-bottom: none; margin-bottom: var(--space-3); padding-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .settings-group > summary::after { transition: none; } }
+
 .settings-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-5); margin-bottom: var(--space-4); }
 .settings-block h3 { font-size: 15.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
 .settings-block h3 svg { width: 19px; height: 19px; color: var(--accent); }
@@ -1262,15 +1289,13 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 /* Τα εικονίδια είναι <use> πάνω στο sprite· χωρίς μέγεθος ένα SVG πιάνει 300x150 */
 .ico { width: 20px; height: 20px; flex: 0 0 auto; }
 
-/* ---- Κρύψιμο ποσών ----
+/* ---- Κρύψιμο υπολοίπων ----
+   Θολώνουν μόνο τα διαθέσιμα: το υπόλοιπο του μήνα, τα διαθέσιμα των
+   Οικονομικών και τα υπόλοιπα των λογαριασμών. Οι επιμέρους κινήσεις και τα
+   κόστη μένουν ορατά — δεν προδίδουν το πόσα έχεις.
    Θόλωμα, όχι απόκρυψη: η διάταξη μένει ακριβώς ίδια και τίποτα δεν αναπηδά
    όταν το γυρνάς. Η ακτίνα δίνεται σε em ώστε να ταιριάζει σε κάθε μέγεθος. */
-.private :is(
-  .hero-value, .stat-sub, .acct-balance, .day-sum, .drill-meta,
-  .quick-chip strong, .drill-value, .drill-total strong, .fixed-row strong,
-  .cal-out, .cal-in, .amount-in, .amount-out, .amount-move, .filter-count,
-  .goal-head strong, .goal-note, .more-cell strong, .money
-) {
+.private :is(.hero-value, .acct-balance, .secret) {
   filter: blur(0.34em);
   user-select: none;
 }

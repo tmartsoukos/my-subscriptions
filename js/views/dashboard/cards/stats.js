@@ -13,6 +13,6 @@ export function html(m) {
     ${m.owedTotal > 0 ? `<div class="stat" data-drill="owed"><div class="label">Μου χρωστάνε</div><div class="value money">${fmt(m.owedTotal)}</div></div>` : ""}
     ${m.trials.length ? `<div class="stat" data-drill="trials"><div class="label">Σε δοκιμή</div><div class="value">${m.trials.length}</div></div>` : ""}
     ${m.hasFinance && !m.heroOn ? `<div class="stat" data-drill="balance"><div class="label">Υπόλοιπο μήνα</div>
-      <div class="value money ${m.balance >= 0 ? "amount-in" : "amount-out"}">${fmt(m.balance)}</div></div>` : ""}
+      <div class="value money secret ${m.balance >= 0 ? "amount-in" : "amount-out"}">${fmt(m.balance)}</div></div>` : ""}
   </div>`;
 }

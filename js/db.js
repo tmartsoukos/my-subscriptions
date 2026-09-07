@@ -24,6 +24,14 @@ export async function signUp(email, password) {
 }
 export async function signOut() { await sb.auth.signOut(); }
 
+// Ζητά νέο access token. Χρήσιμο όταν ο server απορρίψει το τρέχον: το ρολόι
+// της συσκευής και του server δεν συμφωνούν πάντα στο δευτερόλεπτο.
+export async function refreshSession() {
+  const { data, error } = await sb.auth.refreshSession();
+  if (error) throw error;
+  return data.session;
+}
+
 // ---- Offline κατάσταση ----
 let offline = false;
 const offlineListeners = [];

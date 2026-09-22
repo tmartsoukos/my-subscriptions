@@ -1,5 +1,5 @@
 import { notes, uploadNoteImage, signedImageUrl } from "../db.js";
-import { escapeHtml, icons, toast, toastAction, confirmModal, micButtonHtml, bindMicButtons } from "../ui.js";
+import { escapeHtml, icons, toast, toastAction, confirmModal, haptic, micButtonHtml, bindMicButtons } from "../ui.js";
 import { renderMarkdown, plainPreview } from "../markdown.js";
 import { param } from "../router.js";
 import { prefs, pins } from "../prefs.js";
@@ -150,6 +150,7 @@ async function renderEditor(view, id) {
     n.pinned = !n.pinned;
     e.currentTarget.classList.toggle("active", n.pinned);
     await notes.update(n.id, { pinned: n.pinned });
+    haptic("ok");
     toast(n.pinned ? "Καρφιτσώθηκε" : "Ξεκαρφιτσώθηκε");
   });
 
@@ -163,6 +164,7 @@ async function renderEditor(view, id) {
         prefs().pins = [...(prefs().pins || []), created];
       }
       e.currentTarget.classList.toggle("pinned");
+      haptic("ok");
       toast(existing ? "Ξεκαρφιτσώθηκε από την αρχική" : "Καρφιτσώθηκε στην αρχική");
     } catch { toast("Δεν αποθηκεύτηκε", "error"); }
   });
@@ -191,6 +193,7 @@ async function renderEditor(view, id) {
       const pos = bodyEl.selectionStart ?? bodyEl.value.length;
       bodyEl.value = bodyEl.value.slice(0, pos) + snippet + bodyEl.value.slice(pos);
       await save();
+      haptic("ok");
       toast("Η εικόνα προστέθηκε");
     } catch (e) {
       toast(e.message || "Αποτυχία ανεβάσματος", "error");
@@ -208,6 +211,7 @@ async function renderEditor(view, id) {
   view.querySelector("#btnDelete").addEventListener("click", () => {
     confirmModal("Διαγραφή αυτής της σημείωσης;", async () => {
       clearTimeout(timer);
+      haptic("warn");
       const copy = { ...n };
       await notes.remove(n.id);
       items = items.filter(x => x.id !== n.id);

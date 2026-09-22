@@ -274,6 +274,84 @@ export async function bindMicButtons(root, onFinal, { append = false } = {}) {
   });
 }
 
+// ---- Επεξεργασία επί τόπου ----
+// Για μικρές διορθώσεις («ξέχασα ένα μηδενικό») το άνοιγμα ολόκληρης φόρμας
+// είναι τρία βήματα παραπάνω απ' όσα χρειάζονται. Διπλό πάτημα στο κείμενο και
+// γράφεις εκεί που είναι: Enter αποθηκεύει, Escape ακυρώνει, η απώλεια εστίασης
+// αποθηκεύει κι αυτή (στο κινητό δεν υπάρχει πάντα Enter).
+//
+// Το touch-action: manipulation στο .inline-editable εμποδίζει το διπλό πάτημα
+// να κάνει ζουμ στη σελίδα αντί να ανοίξει το πεδίο.
+export function bindInlineEdit(el, { value, type = "text", onSave, format }) {
+  if (!el) return;
+  el.classList.add("inline-editable");
+  el.setAttribute("title", "Διπλό πάτημα για γρήγορη αλλαγή");
+
+  const asText = v => (type === "number" ? String(v ?? "").replace(".", ",") : String(v ?? ""));
+
+  const open = () => {
+    if (el.querySelector("input")) return;
+    const original = el.innerHTML;
+    const input = document.createElement("input");
+    input.type = "text";
+    if (type === "number") input.inputMode = "decimal";
+    input.className = "inline-input";
+    input.value = asText(value);
+    el.textContent = "";
+    el.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const restore = html => { if (closed) return; closed = true; el.innerHTML = html; };
+
+    const commit = async () => {
+      if (closed) return;
+      const raw = input.value.trim();
+      if (!raw || raw === asText(value)) { restore(original); return; }
+      const next = type === "number" ? Number(raw.replace(",", ".")) : raw;
+      if (type === "number" && (!Number.isFinite(next) || next < 0)) {
+        restore(original);
+        toast("Μη έγκυρος αριθμός", "error");
+        return;
+      }
+      restore(escapeHtml(format ? format(next) : String(next)));
+      haptic("ok");
+      try { await onSave(next); }
+      catch { toast("Δεν αποθηκεύτηκε", "error"); }
+    };
+
+    // Το Enter αποθηκεύει απευθείας: το blur() δεν είναι αξιόπιστο όταν το
+    // πεδίο δεν κατάφερε να πάρει εστίαση (π.χ. παράθυρο χωρίς focus).
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+      if (e.key === "Escape") { e.preventDefault(); closed = true; el.innerHTML = original; }
+    });
+    input.addEventListener("blur", commit);
+    input.addEventListener("click", e => e.stopPropagation());
+    input.addEventListener("dblclick", e => e.stopPropagation());
+  };
+
+  el.addEventListener("dblclick", e => { e.preventDefault(); e.stopPropagation(); open(); });
+}
+
+// ---- Τελευταία επιλογή ----
+// Οι φόρμες ξεκινούσαν πάντα από το πρώτο στοιχείο της λίστας. Στην πράξη ο
+// χρήστης ξαναδιαλέγει σχεδόν πάντα ό,τι διάλεξε την προηγούμενη φορά: μένει
+// τοπικά στη συσκευή, γιατί «ο λογαριασμός που χρησιμοποιώ συνήθως» διαφέρει
+// ανάμεσα σε κινητό και υπολογιστή.
+export function rememberChoice(key, value) {
+  try {
+    if (value == null || value === "") localStorage.removeItem("last:" + key);
+    else localStorage.setItem("last:" + key, String(value));
+  } catch { /* γεμάτος χώρος */ }
+}
+
+export function lastChoice(key, fallback = "") {
+  try { return localStorage.getItem("last:" + key) ?? fallback; }
+  catch { return fallback; }
+}
+
 // ---- Χειρονομίες σύρσιμο (μόνο σε οθόνες αφής) ----
 // Σύρσιμο αριστερά -> onLeft, δεξιά -> onRight. Δεν εμποδίζει την κάθετη κύλιση
 // ούτε τη χειρονομία επιστροφής του iOS (αγνοεί αγγίγματα στα 24px της αριστερής άκρης).

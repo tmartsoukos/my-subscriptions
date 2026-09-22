@@ -1,6 +1,6 @@
 import { courses, todos, events } from "../db.js";
 import {
-  escapeHtml, icons, toast, toastAction, openModal, confirmModal,
+  escapeHtml, icons, toast, toastAction, openModal, confirmModal, bindSwipe, collapseRow, haptic, bindInlineEdit,
   fmtDateShort, isoLocal, daysUntil, today, colorPickerHtml, bindColorPicker, pickedColor, bindDrills
 } from "../ui.js";
 import { prefs, pins } from "../prefs.js";
@@ -54,10 +54,10 @@ function formHtml(c) {
     </div>`;
 }
 
-function openForm(c, rerender) {
+function openForm(c, rerender, { preset } = {}) {
   openModal({
     title: c ? "Επεξεργασία μαθήματος" : "Νέο μάθημα",
-    body: formHtml(c),
+    body: formHtml(c || preset),
     onOpen: bindColorPicker,
     onSave: async overlay => {
       const name = overlay.querySelector("#fName").value.trim();
@@ -82,6 +82,7 @@ function openForm(c, rerender) {
       };
       if (c) await courses.update(c.id, row);
       else await courses.insert(row);
+      haptic("ok");
       toast(c ? "Ενημερώθηκε" : "Το μάθημα προστέθηκε");
       await rerender();
     }
@@ -105,7 +106,12 @@ function courseHtml(c) {
   const upcoming = allEvents
     .filter(e => e.course_id === c.id && e.event_date >= isoLocal(today()))
     .sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
-  return `<div class="card">
+  return `<div class="swipe-wrap">
+    <div class="swipe-bg" aria-hidden="true">
+      <span class="sw-delete">${icons.trash} Διαγραφή</span>
+      <span class="sw-done">${icons.edit} Επεξεργασία</span>
+    </div>
+    <div class="card" data-swipe="${c.id}">
     <div class="logo" style="--logo:${c.color};background:${c.color}">${icons.book}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(c.name)}
@@ -122,13 +128,14 @@ function courseHtml(c) {
       </div>` : ""}
     </div>
     <div class="card-right">
-      ${c.grade != null ? `<div class="price">${String(c.grade).replace(".", ",")}</div><div class="cycle">βαθμός</div>` : ""}
+      ${c.grade != null ? `<div class="price" data-grade="${c.id}">${String(c.grade).replace(".", ",")}</div><div class="cycle">βαθμός</div>` : ""}
     </div>
     <div class="card-actions">
       <button class="icon-btn ${(prefs().pins || []).some(p => p.kind === "course" && p.ref_id === c.id) ? "pinned" : ""}"
         data-pin="${c.id}" aria-label="Καρφίτσωμα στην αρχική">${icons.bookmark}</button>
       <button class="icon-btn" data-edit="${c.id}" aria-label="Επεξεργασία">${icons.edit}</button>
       <button class="icon-btn" data-del="${c.id}" aria-label="Διαγραφή">${icons.trash}</button>
+    </div>
     </div>
   </div>`;
 }
@@ -169,8 +176,13 @@ export async function render(view) {
         `<button class="filter-chip ${filter === v ? "active" : ""}" data-filter="${v}">${l} <span>${counts[v]}</span></button>`).join("")}
     </div>
     ${shown.length ? `<div class="list">${shown.map(courseHtml).join("")}</div>`
-      : `<div class="empty">${icons.book}<p>${items.length ? "Κανένα μάθημα σε αυτή την κατηγορία." : "Πρόσθεσε τα μαθήματά σου για να βλέπεις προθεσμίες και μέσο όρο."}</p>
-        ${items.length ? "" : `<button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέο μάθημα</button>`}</div>`}
+      : `<div class="empty">${icons.book}<p>${items.length
+          ? "Κανένα μάθημα σε αυτή την κατηγορία."
+          : "Πρόσθεσε τα μαθήματά σου για να βλέπεις προθεσμίες και μέσο όρο."}</p>
+        ${items.length
+          ? `<button class="btn btn-ghost" id="btnAllFilter">Δείξε όλα</button>`
+          : `<button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέο μάθημα</button>
+             <button class="btn btn-ghost" id="btnExample">Δοκίμασε ένα παράδειγμα</button>`}</div>`}
   `;
 
   const rerender = () => render(view);
@@ -232,8 +244,58 @@ export async function render(view) {
 
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
+  view.querySelector("#btnExample")?.addEventListener("click", () =>
+    openForm(null, rerender, { preset: { name: "Βάσεις Δεδομένων", semester: 4, ects: 6, status: "active" } }));
+  view.querySelector("#btnAllFilter")?.addEventListener("click", () => { filter = "all"; rerender(); });
   view.querySelectorAll("[data-filter]").forEach(b =>
     b.addEventListener("click", () => { filter = b.dataset.filter; rerender(); }));
+
+  async function removeCourse(c) {
+    haptic("warn");
+    const backup = [...items];
+    await collapseRow(view.querySelector(`[data-swipe="${c.id}"]`)?.closest(".swipe-wrap"));
+    items = items.filter(x => x.id !== c.id);
+    try {
+      await courses.remove(c.id);
+    } catch {
+      items = backup;
+      await rerender();
+      toast("Δεν διαγράφηκε", "error");
+      return;
+    }
+    await rerender();
+    toastAction("Το μάθημα διαγράφηκε", "Αναίρεση", async () => {
+      await courses.insert({
+        id: c.id, name: c.name, code: c.code, semester: c.semester, ects: c.ects,
+        grade: c.grade, status: c.status, color: c.color, professor: c.professor
+      });
+      await rerender();
+      toast("Επαναφέρθηκε");
+    });
+  }
+
+  view.querySelectorAll("[data-swipe]").forEach(card => {
+    const c = items.find(x => x.id === card.dataset.swipe);
+    if (!c) return;
+    bindSwipe(card, { onLeft: () => openForm(c, rerender), onRight: () => removeCourse(c) });
+  });
+
+  // Ο βαθμός είναι το πεδίο που αλλάζει συχνότερα: διπλό πάτημα και γράφεις
+  view.querySelectorAll("[data-grade]").forEach(el => {
+    const c = items.find(x => x.id === el.dataset.grade);
+    if (!c) return;
+    bindInlineEdit(el, {
+      value: c.grade,
+      type: "number",
+      format: v => String(v).replace(".", ","),
+      onSave: async v => {
+        if (v > 10) { toast("Ο βαθμός πρέπει να είναι 0–10.", "error"); return; }
+        c.grade = v;
+        await courses.update(c.id, { grade: v });
+        await rerender();
+      }
+    });
+  });
 
   view.onclick = async e => {
     const pinBtn = e.target.closest("[data-pin]");
@@ -256,17 +318,7 @@ export async function render(view) {
     if (editBtn) openForm(items.find(c => c.id === editBtn.dataset.edit), rerender);
     if (delBtn) {
       const c = items.find(x => x.id === delBtn.dataset.del);
-      confirmModal(`Διαγραφή του μαθήματος «${c.name}»; Οι εργασίες του παραμένουν.`, async () => {
-        await courses.remove(c.id);
-        await rerender();
-        toastAction("Το μάθημα διαγράφηκε", "Αναίρεση", async () => {
-          await courses.insert({
-            id: c.id, name: c.name, code: c.code, semester: c.semester, ects: c.ects,
-            grade: c.grade, status: c.status, color: c.color, professor: c.professor
-          });
-          await rerender();
-        });
-      });
+      confirmModal(`Διαγραφή του μαθήματος «${c.name}»; Οι εργασίες του παραμένουν.`, () => removeCourse(c));
     }
   };
 }

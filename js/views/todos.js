@@ -1,10 +1,12 @@
 import { todos, courses } from "../db.js";
 import {
   escapeHtml, isoLocal, daysUntil, fmtDateShort, icons, toast, toastAction,
-  openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons, haptic, collapseRow
+  openModal, confirmModal, bindSwipe, micButtonHtml, bindMicButtons, haptic, collapseRow,
+  bindInlineEdit, rememberChoice, lastChoice
 } from "../ui.js";
 import { parseGreekTask, speechSupported } from "../voice.js";
 import { refreshBadge } from "../badge.js";
+import { coachMark } from "../coach.js";
 
 const PRIO_LABEL = { 1: "Υψηλή", 2: "Μεσαία", 3: "Χαμηλή" };
 let items = [];
@@ -21,7 +23,8 @@ function coursePickerHtml(selectedId) {
   </div>`;
 }
 
-function formHtml(t) {
+function formHtml(t, preset) {
+  t = t || preset;
   return `
     <div class="field">
       <label for="fTitle">Τίτλος</label>
@@ -36,7 +39,7 @@ function formHtml(t) {
         <label for="fPrio">Προτεραιότητα</label>
         <select id="fPrio">
           ${Object.entries(PRIO_LABEL).map(([v, l]) =>
-            `<option value="${v}" ${t?.priority == v || (!t && v == 2) ? "selected" : ""}>${l}</option>`).join("")}
+            `<option value="${v}" ${t?.priority == v || (!t && v == lastChoice("todoPrio", "2")) ? "selected" : ""}>${l}</option>`).join("")}
         </select>
       </div>
       <div class="field">
@@ -47,11 +50,11 @@ function formHtml(t) {
     ${coursePickerHtml(t?.course_id)}`;
 }
 
-function openForm(t, rerender, { startListening = false, from } = {}) {
+function openForm(t, rerender, { startListening = false, from, preset } = {}) {
   openModal({
     from,
     title: t ? "Επεξεργασία εργασίας" : "Νέα εργασία",
-    body: formHtml(t),
+    body: formHtml(t, preset),
     onOpen: async overlay => {
       // Η υπαγόρευση συμπληρώνει τίτλο, ημερομηνία και προτεραιότητα από τη φράση
       await bindMicButtons(overlay, txt => {
@@ -71,8 +74,10 @@ function openForm(t, rerender, { startListening = false, from } = {}) {
         due_date: overlay.querySelector("#fDue").value || null,
         course_id: overlay.querySelector("#fCourse")?.value || null
       };
+      rememberChoice("todoPrio", row.priority);   // η επόμενη φόρμα ξεκινά από εδώ
       if (t) await todos.update(t.id, row);
       else await todos.insert(row);
+      haptic("ok");
       toast(t ? "Η εργασία ενημερώθηκε" : "Η εργασία προστέθηκε");
       await rerender();
     }
@@ -95,7 +100,7 @@ function itemHtml(t) {
     <div class="card todo-item" data-swipe="${t.id}">
       <button class="todo-check ${t.done ? "done" : ""}" data-toggle="${t.id}" aria-label="${t.done ? "Αναίρεση ολοκλήρωσης" : "Ολοκλήρωση"}: ${escapeHtml(t.title)}">${icons.check}</button>
       <span class="prio prio-${t.priority}" title="Προτεραιότητα: ${PRIO_LABEL[t.priority]}"></span>
-      <span class="todo-title ${t.done ? "done" : ""}">${escapeHtml(t.title)}</span>
+      <span class="todo-title ${t.done ? "done" : ""}" data-title="${t.id}">${escapeHtml(t.title)}</span>
       ${dueHtml}
       <div class="card-actions">
         <button class="icon-btn" data-edit="${t.id}" aria-label="Επεξεργασία">${icons.edit}</button>
@@ -127,7 +132,10 @@ export async function render(view, { cached = false } = {}) {
     ${items.length ? `<p class="hint swipe-hint">Σύρε μια εργασία αριστερά για ολοκλήρωση, δεξιά για διαγραφή.</p>` : ""}
     ${pending.length ? `<div class="section-title">Εκκρεμείς</div><div class="list">${pending.map(itemHtml).join("")}</div>` : ""}
     ${done.length ? `<div class="section-title">Ολοκληρωμένες</div><div class="list">${done.map(itemHtml).join("")}</div>` : ""}
-    ${!items.length ? `<div class="empty">${icons.check}<p>Καμία εργασία ακόμα. Πρόσθεσε την πρώτη σου!</p><button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα εργασία</button></div>` : ""}
+    ${!items.length ? `<div class="empty">${icons.check}
+      <p>Καμία εργασία ακόμα. Ό,τι έχει προθεσμία εμφανίζεται και στην αρχική.</p>
+      <button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα εργασία</button>
+      <button class="btn btn-ghost" id="btnExample">Δοκίμασε ένα παράδειγμα</button></div>` : ""}
   `;
 
   const rerender = (cached = false) => render(view, { cached });
@@ -148,6 +156,7 @@ export async function render(view, { cached = false } = {}) {
     }
   }
   async function removeTodo(t) {
+    haptic("warn");
     const backup = [...items];
     await collapseRow(document.querySelector(`[data-swipe="${t.id}"]`)?.closest(".swipe-wrap"));
     items = items.filter(x => x.id !== t.id);   // αισιόδοξη αφαίρεση
@@ -175,6 +184,26 @@ export async function render(view, { cached = false } = {}) {
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnVoice")?.addEventListener("click", () => openForm(null, rerender, { startListening: true }));
+  // Η κενή σελίδα δείχνει τι μπορεί να μπει, με τη φόρμα ήδη γεμάτη
+  view.querySelector("#btnExample")?.addEventListener("click", () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    openForm(null, rerender, { preset: { title: "Ανανέωση διαβατηρίου", priority: 2, due_date: isoLocal(d) } });
+  });
+
+  // Ο τίτλος αλλάζει με διπλό πάτημα, χωρίς άνοιγμα φόρμας
+  view.querySelectorAll("[data-title]").forEach(el => {
+    const t = items.find(x => x.id === el.dataset.title);
+    if (!t) return;
+    bindInlineEdit(el, {
+      value: t.title,
+      onSave: async v => {
+        t.title = v;
+        await todos.update(t.id, { title: v });
+        await rerender(true);
+      }
+    });
+  });
 
   // Χειρονομίες σε κάθε κάρτα
   view.querySelectorAll("[data-swipe]").forEach(card => {
@@ -183,6 +212,11 @@ export async function render(view, { cached = false } = {}) {
       onLeft: () => toggleDone(t),
       onRight: () => removeTodo(t)
     });
+  });
+
+  coachMark("todo-swipe", {
+    target: view.querySelector("[data-swipe]"),
+    text: "Σύρε μια εργασία αριστερά για ολοκλήρωση, δεξιά για διαγραφή. Διπλό πάτημα στον τίτλο τον αλλάζει."
   });
 
   // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders

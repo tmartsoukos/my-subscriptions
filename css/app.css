@@ -1059,6 +1059,99 @@ main#view.enter-back { animation: viewInBack var(--dur) var(--ease-out); }
 }
 
 /* ============ Ρυθμίσεις ============ */
+/* ---- Πρώτη επαφή ----
+   Πλήρης οθόνη με σκούρο πέπλο: τίποτα άλλο δεν τραβάει την προσοχή μέχρι να
+   απαντηθούν οι τρεις ερωτήσεις. Στο κινητό το φύλλο πιάνει σχεδόν όλο το ύψος. */
+.onb {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-4);
+  background: rgba(2, 6, 18, .82);
+  opacity: 0; transition: opacity var(--dur) var(--ease-out);
+}
+.onb.show { opacity: 1; }
+.onb-card {
+  width: 100%; max-width: 440px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: var(--space-5);
+  box-shadow: var(--elev-3);
+  transform: translateY(14px); transition: transform var(--dur) var(--ease-out);
+  max-height: 92vh; overflow-y: auto;
+}
+.onb.show .onb-card { transform: none; }
+.onb-card h2 { font-size: 21px; margin-bottom: var(--space-2); }
+.onb-card p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: var(--space-4); }
+.onb-mark {
+  width: 56px; height: 56px; border-radius: 16px; margin-bottom: var(--space-4);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-grad);
+}
+.onb-mark svg { width: 28px; height: 28px; color: #fff; }
+.onb-mark.onb-done { background: var(--ok); }
+.onb-dots { display: flex; gap: 6px; margin-bottom: var(--space-4); }
+.onb-dot { width: 22px; height: 3px; border-radius: 2px; background: var(--border); transition: background var(--dur-fast) var(--ease-out); }
+.onb-dot.on { background: var(--accent); }
+.onb-foot { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
+.onb-foot .btn { flex: 1; }
+.onb-foot .onb-skip { flex: 0 0 auto; }
+.onb-list { margin: 0 0 var(--space-3); padding-left: 18px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.onb-list strong { color: var(--text); }
+
+/* Οι επιλογές είναι κουμπιά-τσιπ: μεγάλος στόχος αφής, ορατή κατάσταση */
+.onb-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.onb-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 13px; border-radius: 999px; cursor: pointer;
+  background: var(--surface2);
+  border: 1px solid var(--border); color: var(--muted);
+  font-size: 13.5px; font-family: inherit;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.onb-chip svg { width: 16px; height: 16px; }
+.onb-chip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+/* ---- Οδηγίες πρώτης φοράς ----
+   Η φυσαλίδα δείχνει το ίδιο το στοιχείο. Το βελάκι ακολουθεί το κέντρο του
+   στόχου μέσω της --arrow-x, ώστε να μη «δείχνει» στο κενό. */
+.coach { position: fixed; left: 0; right: 0; z-index: 70; padding: 0 var(--space-4); pointer-events: none;
+  opacity: 0; transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); transform: translateY(6px); }
+.coach.show { opacity: 1; transform: none; }
+.coach-bubble {
+  pointer-events: auto; position: relative; max-width: 330px; margin: 0 auto;
+  background: var(--accent); color: #fff;
+  border-radius: 14px; padding: 13px 15px;
+  box-shadow: var(--elev-2);
+}
+.coach-bubble p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; color: #fff; }
+.coach-ok { width: 100%; background: rgba(255, 255, 255, .18); border: none; color: #fff; }
+.coach-bubble::before {
+  content: ""; position: absolute; left: clamp(18px, calc(var(--arrow-x) - 50vw + 50%), calc(100% - 18px));
+  width: 12px; height: 12px; background: var(--accent); transform: rotate(45deg);
+}
+.coach-below .coach-bubble::before { top: -5px; }
+.coach-above .coach-bubble::before { bottom: -5px; }
+/* Ο στόχος φωτίζεται όσο η φυσαλίδα είναι ανοιχτή */
+.coach-target { position: relative; z-index: 69; box-shadow: 0 0 0 2px var(--accent); border-radius: var(--radius); }
+
+/* ---- Επεξεργασία επί τόπου ----
+   Το touch-action εμποδίζει το διπλό πάτημα να κάνει ζουμ αντί να ανοίξει πεδίο. */
+.inline-editable { touch-action: manipulation; cursor: text; border-radius: 6px; }
+@media (hover: hover) { .inline-editable:hover { background: var(--surface2); } }
+.inline-input {
+  width: 100%; min-width: 70px; font: inherit; color: var(--text);
+  background: var(--bg); border: 1px solid var(--accent); border-radius: 6px;
+  padding: 1px 5px; text-align: inherit;
+}
+.inline-input:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.todo-title.inline-editable { display: inline-block; min-width: 40px; }
+
+/* Δύο κουμπιά στην κενή κατάσταση στοιβάζονται σε στενή οθόνη */
+.empty .btn + .btn { margin-top: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .onb, .onb-card, .coach { transition: none; }
+}
+
 /* ---- Ομάδες ρυθμίσεων ----
    Δεκαπέντε ενότητες σε μία στήλη ήταν ατέλειωτο σκρολ στο κινητό. Πέντε
    πτυσσόμενες ομάδες χωρούν σε μία οθόνη και δείχνουν τη δομή με μια ματιά. */

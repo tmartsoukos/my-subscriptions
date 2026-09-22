@@ -1,6 +1,6 @@
 import { health } from "../db.js";
 import {
-  escapeHtml, icons, toast, toastAction, openModal, confirmModal,
+  escapeHtml, icons, toast, toastAction, openModal, confirmModal, bindSwipe, collapseRow, haptic,
   fmtDate, fmtDateShort, isoLocal, daysUntil, today, micButtonHtml, bindMicButtons
 } from "../ui.js";
 
@@ -57,10 +57,10 @@ function formHtml(h) {
     </div>`;
 }
 
-function openForm(h, rerender) {
+function openForm(h, rerender, { preset } = {}) {
   openModal({
     title: h ? "Επεξεργασία" : "Νέα καταχώριση",
-    body: formHtml(h),
+    body: formHtml(h || preset),
     onOpen: overlay => bindMicButtons(overlay),
     onSave: async overlay => {
       const title = overlay.querySelector("#fTitle").value.trim();
@@ -77,6 +77,7 @@ function openForm(h, rerender) {
       };
       if (h) await health.update(h.id, row);
       else await health.insert(row);
+      haptic("ok");
       toast(h ? "Ενημερώθηκε" : "Προστέθηκε");
       await rerender();
     }
@@ -110,7 +111,12 @@ function itemHtml(h) {
     h.item_time ? h.item_time.slice(0, 5) : ""
   ].filter(Boolean).join(" · ");
 
-  return `<div class="card ${days === 0 ? "due-today" : days > 0 && days <= 7 ? "due-soon" : ""}">
+  return `<div class="swipe-wrap">
+    <div class="swipe-bg" aria-hidden="true">
+      <span class="sw-delete">${icons.trash} Διαγραφή</span>
+      <span class="sw-done">${icons.edit} Επεξεργασία</span>
+    </div>
+    <div class="card ${days === 0 ? "due-today" : days > 0 && days <= 7 ? "due-soon" : ""}" data-swipe="${h.id}">
     <div class="logo logo-sm wl-kind" title="${KINDS[h.kind]}">${icons[KIND_ICON[h.kind]] || icons.heart}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(h.title)}<span class="chip">${KINDS[h.kind]}</span></div>
@@ -123,6 +129,7 @@ function itemHtml(h) {
     <div class="card-actions">
       <button class="icon-btn" data-edit="${h.id}" aria-label="Επεξεργασία">${icons.edit}</button>
       <button class="icon-btn" data-del="${h.id}" aria-label="Διαγραφή">${icons.trash}</button>
+    </div>
     </div>
   </div>`;
 }
@@ -160,16 +167,58 @@ export async function render(view) {
         `<button class="filter-chip ${filter === v ? "active" : ""}" data-filter="${v}">${l} <span>${counts[v]}</span></button>`).join("")}
     </div>
     ${shown.length ? `<div class="list">${shown.map(itemHtml).join("")}</div>`
-      : `<div class="empty">${icons.heart}<p>${items.length ? "Τίποτα εδώ." : "Ραντεβού, εξετάσεις, εμβόλια και φάρμακα σε ένα μέρος."}</p>
-        ${items.length ? "" : `<button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα καταχώριση</button>`}</div>`}
+      : `<div class="empty">${icons.heart}<p>${items.length
+          ? "Κανένα αποτέλεσμα σε αυτό το φίλτρο."
+          : "Ραντεβού, εξετάσεις, εμβόλια και φάρμακα σε ένα μέρος."}</p>
+        ${items.length
+          ? `<button class="btn btn-ghost" id="btnAllFilter">Δείξε όλα</button>`
+          : `<button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα καταχώριση</button>
+             <button class="btn btn-ghost" id="btnExample">Δοκίμασε ένα παράδειγμα</button>`}</div>`}
     <p class="hint">Οι καταχωρίσεις με ημερομηνία εμφανίζονται και στο Ημερολόγιο Apple μέσω της ροής.</p>
   `;
 
   const rerender = () => render(view);
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
+  // Η κενή σελίδα δείχνει τι μπορεί να μπει, με τη φόρμα ήδη γεμάτη
+  view.querySelector("#btnExample")?.addEventListener("click", () => {
+    const d = today();
+    d.setDate(d.getDate() + 14);
+    openForm(null, rerender, { preset: { title: "Οδοντίατρος", kind: "appointment", item_date: isoLocal(d), item_time: "10:00" } });
+  });
+  view.querySelector("#btnAllFilter")?.addEventListener("click", () => { filter = "all"; rerender(); });
   view.querySelectorAll("[data-filter]").forEach(b =>
     b.addEventListener("click", () => { filter = b.dataset.filter; rerender(); }));
+
+  async function removeItem(h) {
+    haptic("warn");
+    const backup = [...items];
+    await collapseRow(view.querySelector(`[data-swipe="${h.id}"]`)?.closest(".swipe-wrap"));
+    items = items.filter(x => x.id !== h.id);
+    try {
+      await health.remove(h.id);
+    } catch {
+      items = backup;
+      await rerender();
+      toast("Δεν διαγράφηκε", "error");
+      return;
+    }
+    await rerender();
+    toastAction("Διαγράφηκε", "Αναίρεση", async () => {
+      await health.insert({
+        id: h.id, kind: h.kind, title: h.title, item_date: h.item_date, item_time: h.item_time,
+        repeat_months: h.repeat_months, provider: h.provider, result: h.result, note: h.note
+      });
+      await rerender();
+      toast("Επαναφέρθηκε");
+    });
+  }
+
+  view.querySelectorAll("[data-swipe]").forEach(card => {
+    const h = items.find(x => x.id === card.dataset.swipe);
+    if (!h) return;
+    bindSwipe(card, { onLeft: () => openForm(h, rerender), onRight: () => removeItem(h) });
+  });
 
   view.onclick = async e => {
     const editBtn = e.target.closest("[data-edit]");
@@ -177,17 +226,7 @@ export async function render(view) {
     if (editBtn) openForm(items.find(h => h.id === editBtn.dataset.edit), rerender);
     if (delBtn) {
       const h = items.find(x => x.id === delBtn.dataset.del);
-      confirmModal(`Διαγραφή «${h.title}»;`, async () => {
-        await health.remove(h.id);
-        await rerender();
-        toastAction("Διαγράφηκε", "Αναίρεση", async () => {
-          await health.insert({
-            id: h.id, kind: h.kind, title: h.title, item_date: h.item_date, item_time: h.item_time,
-            repeat_months: h.repeat_months, provider: h.provider, result: h.result, note: h.note
-          });
-          await rerender();
-        });
-      });
+      confirmModal(`Διαγραφή «${h.title}»;`, () => removeItem(h));
     }
   };
 }

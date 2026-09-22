@@ -4,9 +4,10 @@ import {
 import {
   escapeHtml, fmt, fmtDate, fmtDateShort, isoLocal, today, icons, toast, toastAction,
   openModal, confirmModal, bindSwipe, haptic, monthlyCost, isInTrial, micButtonHtml,
-  bindMicButtons, collapseRow, bindDrills, nextDue
+  bindMicButtons, collapseRow, bindDrills, nextDue, bindInlineEdit, rememberChoice, lastChoice
 } from "../ui.js";
 import { param } from "../router.js";
+import { coachMark } from "../coach.js";
 import { barChart, donutChart } from "../charts.js";
 import { heatmap } from "../heatmap.js";
 import { monthCalendar } from "../moneycal.js";
@@ -156,7 +157,7 @@ function formHtml(e, kind) {
     </div>
     <div class="field">
       <label for="fCat">Κατηγορία</label>
-      <select id="fCat">${categoryOptionsHtml(kind, cats(kind), e?.category)}</select>
+      <select id="fCat">${categoryOptionsHtml(kind, cats(kind), e?.category ?? lastChoice("finCat:" + kind))}</select>
     </div>
     ${accountFieldHtml(e ? e.account_id : defaultAccountId())}
     <div class="field">
@@ -219,6 +220,7 @@ function openForm(entry, kind, rerender, from) {
           entry_date, note, account_id, to_account_id: null
         };
         rememberAccount(account_id);
+        rememberChoice("finCat:" + k, row.category);   // η επόμενη φόρμα ξεκινά από εδώ
       }
 
       if (entry) await finance.update(entry.id, row);
@@ -256,8 +258,8 @@ function entryHtml(e) {
         <div class="meta">${bits.join(" · ")}</div>
       </div>
       <div class="card-right">
-        <div class="price money ${transfer ? "amount-move" : income ? "amount-in" : "amount-out"}">${
-          transfer ? "" : income ? "+" : "−"}${fmt(e.amount)}</div>
+        <div class="price money ${transfer ? "amount-move" : income ? "amount-in" : "amount-out"}"
+          data-amount="${e.id}">${transfer ? "" : income ? "+" : "−"}${fmt(e.amount)}</div>
       </div>
       <div class="card-actions">
         <button class="icon-btn" data-edit="${e.id}" aria-label="Επεξεργασία">${icons.edit}</button>
@@ -589,7 +591,8 @@ create policy "own finance" on public.finance_entries
       ? `<div class="empty">${icons.wallet}<p>Καμία κίνηση με αυτά τα φίλτρα.</p>
          <button class="btn btn-ghost" id="btnClearFiltersEmpty">${icons.x} Καθαρισμός φίλτρων</button></div>`
       : `<div class="empty">${icons.wallet}<p>Καμία εγγραφή σε αυτή την περίοδο.</p>
-         <button class="btn btn-primary" id="btnExpenseEmpty">${icons.plus} Πρώτο έξοδο</button></div>`;
+         <button class="btn btn-primary" id="btnExpenseEmpty">${icons.plus} Πρώτο έξοδο</button>
+         <button class="btn btn-ghost" id="btnFinExample">Δοκίμασε ένα παράδειγμα</button></div>`;
 
   const overviewBlock = `
     ${accountsBlock}
@@ -778,6 +781,8 @@ create policy "own finance" on public.finance_entries
   view.querySelector("#btnIncome")?.addEventListener("click", () => openForm(null, "income", rerender));
   view.querySelector("#btnExpense")?.addEventListener("click", () => openForm(null, "expense", rerender));
   view.querySelector("#btnExpenseEmpty")?.addEventListener("click", () => openForm(null, "expense", rerender));
+  view.querySelector("#btnFinExample")?.addEventListener("click", () => openForm(
+    { amount: 4.5, category: "food", entry_date: isoLocal(today()), note: "καφές" }, "expense", rerender));
   view.querySelector("#btnTransfer")?.addEventListener("click", () => openForm(null, "transfer", rerender));
   view.querySelectorAll("[data-range]").forEach(b =>
     b.addEventListener("click", () => { range = b.dataset.range; shownCount = PAGE; rerender(); }));
@@ -883,6 +888,29 @@ create policy "own finance" on public.finance_entries
       onLeft: () => openForm(e, e.kind, rerender, card),
       onRight: () => removeEntry(e)
     });
+  });
+
+  // Το ποσό αλλάζει με διπλό πάτημα: η πιο συχνή διόρθωση δεν χρειάζεται φόρμα
+  view.querySelectorAll("[data-amount]").forEach(el => {
+    const e = items.find(x => x.id === el.dataset.amount);
+    if (!e) return;
+    const sign = e.kind === "transfer" ? "" : e.kind === "income" ? "+" : "−";
+    bindInlineEdit(el, {
+      value: e.amount,
+      type: "number",
+      format: v => sign + fmt(v),
+      onSave: async v => {
+        e.amount = v;
+        await finance.update(e.id, { amount: v });
+        await rerender();
+      }
+    });
+  });
+
+  // Μία φορά: η χειρονομία δεν φαίνεται πουθενά αν δεν τη δείξεις
+  coachMark("fin-swipe", {
+    target: view.querySelector("[data-swipe]"),
+    text: "Σύρε μια γραμμή αριστερά για επεξεργασία, δεξιά για διαγραφή. Διπλό πάτημα στο ποσό το αλλάζει επί τόπου."
   });
 
   view.querySelectorAll("[data-quick]").forEach(btn => btn.addEventListener("click", async () => {

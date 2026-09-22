@@ -58,11 +58,11 @@ function formHtml(w) {
     </div>`;
 }
 
-function openForm(w, rerender, from) {
+function openForm(w, rerender, from, { preset } = {}) {
   openModal({
     from,
     title: w ? "Επεξεργασία" : "Νέα καταχώριση",
-    body: formHtml(w),
+    body: formHtml(w || preset),
     onOpen: overlay => {
       bindMicButtons(overlay);
       const box = overlay.querySelector(".stars");
@@ -90,6 +90,7 @@ function openForm(w, rerender, from) {
       };
       if (w) await watchlist.update(w.id, row);
       else await watchlist.insert(row);
+      haptic("ok");
       toast(w ? "Ενημερώθηκε" : "Προστέθηκε στη λίστα");
       await rerender();
     }
@@ -144,8 +145,13 @@ export async function render(view, { cached = false } = {}) {
     </div>
     ${items.length ? `<p class="hint swipe-hint">Σύρε αριστερά για αλλαγή κατάστασης, δεξιά για διαγραφή.</p>` : ""}
     ${shown.length ? `<div class="list">${shown.map(cardHtml).join("")}</div>`
-      : `<div class="empty">${icons.bookmark}<p>${items.length ? "Τίποτα σε αυτή την κατηγορία." : "Κράτα εδώ ταινίες, σειρές και βιβλία που θέλεις να δεις."}</p>
-         ${items.length ? "" : `<button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα καταχώριση</button>`}</div>`}
+      : `<div class="empty">${icons.bookmark}<p>${items.length
+           ? "Τίποτα σε αυτή την κατηγορία."
+           : "Κράτα εδώ ταινίες, σειρές και βιβλία που θέλεις να δεις."}</p>
+         ${items.length
+           ? `<button class="btn btn-ghost" id="btnAllFilter">Δείξε όλα</button>`
+           : `<button class="btn btn-primary" id="btnAddEmpty">${icons.plus} Νέα καταχώριση</button>
+              <button class="btn btn-ghost" id="btnExample">Δοκίμασε ένα παράδειγμα</button>`}</div>`}
   `;
 
   const rerender = (cached = false) => render(view, { cached });
@@ -165,6 +171,7 @@ export async function render(view, { cached = false } = {}) {
     }
   }
   async function removeItem(w) {
+    haptic("warn");
     await collapseRow(document.querySelector(`[data-swipe="${w.id}"]`)?.closest(".swipe-wrap"));
     await watchlist.remove(w.id);
     await rerender();
@@ -180,6 +187,9 @@ export async function render(view, { cached = false } = {}) {
 
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
+  view.querySelector("#btnExample")?.addEventListener("click", () =>
+    openForm(null, rerender, null, { preset: { title: "Dune: Μέρος Δεύτερο", kind: "movie", status: "planned" } }));
+  view.querySelector("#btnAllFilter")?.addEventListener("click", () => { filter = "all"; rerender(); });
   view.querySelectorAll("[data-filter]").forEach(b =>
     b.addEventListener("click", () => { filter = b.dataset.filter; rerender(); }));
 

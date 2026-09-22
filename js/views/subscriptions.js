@@ -2,12 +2,13 @@ import { subscriptions } from "../db.js";
 import {
   escapeHtml, fmt, fmtDate, isoLocal, daysUntil, nextDue, monthlyCost,
   isInTrial, trialDaysLeft, members, shareCount, isShared, myShare, memberShare, unpaidMembers, unpaidShares,
-  CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, openModal, confirmModal,
+  CYCLES, CYCLE_LABEL, CATEGORIES, icons, toast, toastAction, openModal, confirmModal, bindSwipe,
   colorPickerHtml, bindColorPicker, pickedColor, haptic, collapseRow, today, bindDrills, sendReminder, sendGroupReminder
 } from "../ui.js";
 import { sumAmounts } from "../money.js";
 import { logoFor, dnaAttrs } from "../logos.js";
 import { mergedCategories, prefs, pins } from "../prefs.js";
+import { coachMark } from "../coach.js";
 
 let items = [];
 
@@ -175,6 +176,7 @@ function openForm(sub, rerender, from) {
       if (!row) return false;
       if (sub) await subscriptions.update(sub.id, row);
       else await subscriptions.insert(row);
+      haptic("ok");
       toast(sub ? "Η συνδρομή ενημερώθηκε" : "Η συνδρομή προστέθηκε");
       await rerender();
     }
@@ -289,7 +291,12 @@ function cardHtml(s) {
     s.account_note ? `<span class="acct">${icons.user}${escapeHtml(s.account_note)}</span>` : ""
   ].filter(Boolean).join("");
 
-  return `<div class="card expandable ${cardClass}" data-card="${s.id}">
+  return `<div class="swipe-wrap">
+    <div class="swipe-bg" aria-hidden="true">
+      <span class="sw-delete">${icons.trash} Διαγραφή</span>
+      <span class="sw-done">${icons.edit} Επεξεργασία</span>
+    </div>
+    <div class="card expandable ${cardClass}" data-card="${s.id}" data-swipe="${s.id}">
     <div class="logo" ${dnaAttrs(s, `--logo:${s.color};background:${s.color};`)}>${logoFor(s)}</div>
     <div class="card-main">
       <div class="name">${escapeHtml(s.name)}
@@ -319,6 +326,7 @@ function cardHtml(s) {
         aria-label="Λεπτομέρειες για ${escapeHtml(s.name)}">${icons.chevronR}</button>
     </div>
     ${moreHtml(s)}
+    </div>
   </div>`;
 }
 
@@ -407,6 +415,47 @@ export async function render(view) {
   view.querySelector("#btnAdd")?.addEventListener("click", () => openForm(null, rerender));
   view.querySelector("#btnAddEmpty")?.addEventListener("click", () => openForm(null, rerender));
   // onclick αντί για addEventListener: το #view δεν αντικαθίσταται μεταξύ renders
+  async function removeSub(sub) {
+    haptic("warn");
+    const backup = [...items];
+    await collapseRow(view.querySelector(`[data-swipe="${sub.id}"]`)?.closest(".swipe-wrap"));
+    items = items.filter(x => x.id !== sub.id);
+    try {
+      await subscriptions.remove(sub.id);
+    } catch {
+      items = backup;
+      await rerender();
+      toast("Δεν διαγράφηκε", "error");
+      return;
+    }
+    await rerender();
+    // Η συνδρομή επιστρέφει με το ίδιο id: τα μέλη και οι πληρωμές τους μένουν
+    toastAction("Η συνδρομή διαγράφηκε", "Αναίρεση", async () => {
+      await subscriptions.insert({
+        id: sub.id, name: sub.name, price: sub.price, next_date: sub.next_date,
+        trial_end: sub.trial_end, members: sub.members, cycle: sub.cycle,
+        category: sub.category, color: sub.color, payment_method: sub.payment_method,
+        account_note: sub.account_note, cancel_url: sub.cancel_url
+      });
+      await rerender();
+      toast("Επαναφέρθηκε");
+    });
+  }
+
+  view.querySelectorAll("[data-swipe]").forEach(card => {
+    const sub = items.find(x => x.id === card.dataset.swipe);
+    if (!sub) return;
+    bindSwipe(card, {
+      onLeft: () => openForm(sub, rerender, card),
+      onRight: () => removeSub(sub)
+    });
+  });
+
+  coachMark("sub-swipe", {
+    target: view.querySelector("[data-swipe]"),
+    text: "Σύρε μια συνδρομή αριστερά για επεξεργασία, δεξιά για διαγραφή."
+  });
+
   view.onclick = async e => {
     // Ξεδίπλωμα λεπτομερειών: το βελάκι ή πάτημα στο σώμα της κάρτας
     const expandBtn = e.target.closest("[data-expand]");
@@ -461,12 +510,7 @@ export async function render(view) {
     if (editBtn) openForm(items.find(s => s.id === editBtn.dataset.edit), rerender, editBtn.closest(".card"));
     if (delBtn) {
       const sub = items.find(s => s.id === delBtn.dataset.del);
-      confirmModal(`Διαγραφή της συνδρομής «${sub.name}»;`, async () => {
-        await collapseRow(delBtn.closest(".card"));
-        await subscriptions.remove(sub.id);
-        toast("Η συνδρομή διαγράφηκε");
-        await rerender();
-      });
+      confirmModal(`Διαγραφή της συνδρομής «${sub.name}»;`, () => removeSub(sub));
     }
   };
 }

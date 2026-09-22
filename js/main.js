@@ -11,6 +11,7 @@ import { initScrollTop } from "./scrolltop.js";
 import { initPrivacy } from "./privacy.js";
 import { initErrorLog, logError } from "./errors.js";
 import { playIntro } from "./intro.js";
+import { maybeOnboard } from "./onboarding.js";
 import * as router from "./router.js";
 import * as dashboard from "./views/dashboard/index.js";
 import * as subs from "./views/subscriptions.js";
@@ -66,6 +67,9 @@ async function showApp() {
     await router.start();
     initScrollTop();
     introDone();
+    // Ολοκαίνουριος λογαριασμός: τέσσερα βήματα που στήνουν μπάρα και πρώτο
+    // λογαριασμό. Αν άλλαξε κάτι, η μπάρα και η σελίδα ξαναζωγραφίζονται.
+    if (await maybeOnboard()) { paintTabs(icons); router.render(); }
   } else {
     router.render();
   }

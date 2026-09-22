@@ -1,5 +1,5 @@
 import { events, subscriptions, courses } from "../db.js";
-import { escapeHtml, isoLocal, fmt, icons, toast, openModal, confirmModal, nextDue, today } from "../ui.js";
+import { escapeHtml, isoLocal, fmt, icons, toast, toastAction, openModal, confirmModal, haptic, nextDue, today } from "../ui.js";
 import { logoFor } from "../logos.js";
 
 const DOW = ["Δευ", "Τρί", "Τετ", "Πέμ", "Παρ", "Σάβ", "Κυρ"];
@@ -98,6 +98,7 @@ function openForm(ev, dateIso, rerender) {
       };
       if (ev) await events.update(ev.id, row);
       else await events.insert(row);
+      haptic("ok");
       toast(ev ? "Η υποχρέωση ενημερώθηκε" : "Η υποχρέωση προστέθηκε");
       await rerender();
     }
@@ -141,11 +142,21 @@ function openDay(dateIso, payments, rerender) {
     const db = e.target.closest("[data-ev-del]");
     if (eb) { m.close(); openForm(evItems.find(x => x.id === eb.dataset.evEdit), null, rerender); }
     if (db) {
+      const ev = evItems.find(x => x.id === db.dataset.evDel);
       m.close();
       confirmModal("Διαγραφή αυτής της υποχρέωσης;", async () => {
-        await events.remove(db.dataset.evDel);
-        toast("Η υποχρέωση διαγράφηκε");
+        haptic("warn");
+        await events.remove(ev.id);
         await rerender();
+        // Επαναφορά με το ίδιο id, ώστε να μη χαθεί η σύνδεση με το μάθημα
+        toastAction("Η υποχρέωση διαγράφηκε", "Αναίρεση", async () => {
+          await events.insert({
+            id: ev.id, title: ev.title, event_date: ev.event_date, event_time: ev.event_time,
+            notes: ev.notes, course_id: ev.course_id, color: ev.color
+          });
+          await rerender();
+          toast("Επαναφέρθηκε");
+        });
       });
     }
   });

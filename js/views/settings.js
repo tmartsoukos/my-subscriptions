@@ -5,6 +5,7 @@ import { pushSupported, isIOS, isStandalone, currentSubscription, enablePush, di
 import { getTheme, setTheme, getDensity, setDensity } from "../theme.js";
 import { isPrivate, setPrivate } from "../privacy.js";
 import { recentErrors, clearErrors } from "../errors.js";
+import { resetCoachMarks, coachCount } from "../coach.js";
 import {
   ACCENTS, getAccent, setAccent, getName, setName, getStartRoute, setStartRoute,
   uploadAvatar, removeAvatar, initials, prefs, loadPrefs, paintAvatar, quickActions, goals, customCategories,
@@ -146,6 +147,13 @@ export async function render(view) {
       <h3>${icons.home} Διάταξη αρχικής</h3>
       <p>Ποιες κάρτες βλέπεις και με ποια σειρά.</p>
       <div class="mini-list" id="layoutList"></div>
+    </div>
+
+    <div class="settings-block">
+      <h3>${icons.check} Οδηγίες πρώτης φοράς</h3>
+      <p>Οι φυσαλίδες που δείχνουν τις χειρονομίες εμφανίζονται μία φορά ανά σελίδα.
+      Μηδένισέ τις αν θέλεις να τις ξαναδείς — ή για να τις δείξεις σε κάποιον άλλο.</p>
+      <button class="btn btn-ghost" id="btnResetCoach">Επαναφορά οδηγιών</button>
     </div>
       </div>
     </details>
@@ -450,6 +458,15 @@ export async function render(view) {
     b.classList.toggle("on");
     updateTabsHint();
     haptic("tap");
+  });
+
+  // ---- Οδηγίες πρώτης φοράς ----
+  view.querySelector("#btnResetCoach")?.addEventListener("click", e => {
+    const n = coachCount();
+    resetCoachMarks();
+    haptic("ok");
+    toast(n ? "Οι οδηγίες θα ξαναεμφανιστούν" : "Δεν είχες δει καμία ακόμα");
+    e.currentTarget.blur();
   });
 
   // ---- Διάταξη αρχικής ----
